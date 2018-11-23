@@ -1,0 +1,36 @@
+SERVER:
+=======
+PPID (Parent Process):
+======================
+- initialize shared memory segment (designating the whiteboard) [PPID and shared memory segment]
+  while true do
+  - listen for connections [PPID and client]
+  - accept connections [PPID and client]
+  - fork a child process (PID) for every accepted connection to a client (attempting to access the whiteboard)
+
+PID (Child Process):
+====================
+/*MAIN THREAD*/
+- send whiteboard content to client [PID and client]
+while true do
+  - wait for modifications from client [PID and client]
+  - receive modifications from client [PID and client]
+  - update the content of the shared memory segment (the content of the whiteboard) through an access-synchronizing semaphore [PID and shared memory segment]
+  - broadcast the updates to other PIDs through a communication-dedicated semaphore [PID and PIDs]
+
+/*SECONDARY THREAD*/
+while true do
+  - wait for updates introduced by others clients (PIDs) through a communication-dedicated semaphore [PID and PIDs]
+  - send updates to client [PID and client]
+
+CLIENT:
+=======
+/*MAIN THREAD*/
+- receive the content of the whiteboard upon creation of the corresponding PID [client and PID]
+while true do
+  - introduce modifications
+  - send modifications to PID [client and PID]
+
+/*SECONDARY THREAD*/
+while whiteboard updated by other clients do
+  - update the content at the current client [PID and client]
