@@ -4,24 +4,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
-
-#define SHM_WB_CODE 66
-#define SHM_CLIENTS_CODE 99
-#define WHITEBOARD_SIZE 1000000
-#define SEM_ACCESS_CODE 33
-
-typedef struct whiteboard {
-  char content[WHITEBOARD_SIZE];
-  size_t readcount;
-} whiteboard;
-
-//union structure for semaphores
-union semun {
-  int value; /*valeur quand cmd=SETVAL*/
-  struct semid_ds *buf; /*tampon quand cmd=IPC_STAT ou cmd=IPC_SET*/
-  unsigned short *array; /*tableau quand cmd=GETALL ou cmd=SETALL*/
-  struct seminfo *__buf; /*tampon quand cmd=IPC_INFO (sous Linux)*/
-};
+#include "init_IPC.h"
 
 int main(int argc, char* argv[]){
 
@@ -39,23 +22,6 @@ int main(int argc, char* argv[]){
     exit(EXIT_FAILURE);
   }
   printf("whiteboard id : %d\n", wb_id);
-
-  /*attachement et initialization du contenu du whiteboard*/
-  whiteboard* wb = (whiteboard*)shmat(wb_id, NULL, 0666);
-  if(wb == (whiteboard*) -1){
-    perror("shmat whiteboard error");
-    exit(EXIT_FAILURE);
-  }
-  wb->readcount = 0;
-  printf("whiteboard attached and readcount initialized successfully\n");
-
-  /*détachement du whiteboard du processus courant*/
-  int shmdt_res = shmdt((void*)wb);
-  if(shmdt_res == -1){
-    perror("shmdt whiteboard error");
-    exit(EXIT_FAILURE);
-  }
-  printf("whiteboard detached successfully\n");
 
   /*obtention d'une clé pour le segment de mémoire partagée pour le nombre de clients*/
   key_t shm_clients_key = ftok("ipc", SHM_CLIENTS_CODE);
