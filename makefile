@@ -1,24 +1,32 @@
 CC=gcc
-CFLAGS=-g -Wall
+CFLAGS=-c -g -Wall
 
 all: server client
 
-client: client.c client.h init_IPC.h server.h
-	@echo compiling client
-	$(CC) $(CFLAGS) -o $@ client.c
-	@echo created client executable
+client: client.o server.o init_IPC.h client.h
+	@echo creating client executable
+	$(CC) -o $@ $?
+	@echo created executable successfully
 
-server: server.c server.h init_IPC.h
-	@echo compiling server
-	$(CC) $(CFLAGS) -o $@ server.c
-	@echo created server executable
+server: server.o init_IPC.h server.h
+	@echo creating server executable
+	$(CC) -o $@ $?
+	@echo created executable successfully
+	@echo
 
-init: init_IPC.c init_IPC.h
-	@echo initialization of IPC objects
-	$(CC) $(CFLAGS) -o $@ init_IPC.c
-	@echo finished initialization of IPC objects
+server.o: server.c server.h init_IPC.h
+	@echo compiling server program
+	$(CC) $(CFLAGS) server.c
+	@echo finished compiling
+	@echo
+
+client.o: client.c client.h init_IPC.h server.o server.h
+	@echo compiling client program
+	$(CC) $(CFLAGS) client.c
+	@echo finished compiling
+	@echo
 
 clean:
 	@echo cleaning project
-	rm -rf init server client
+	rm -rf *.o server client
 	@echo finished cleaning project

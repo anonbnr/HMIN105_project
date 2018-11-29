@@ -1,23 +1,15 @@
 #ifndef _INIT_IPC_H
 #define _INIT_IPC_H
 
-#define SHM_WB_CODE 66
-#define SHM_CLIENTS_CODE 99
 #define WHITEBOARD_SIZE 1000000
-#define SEM_ACCESS_CODE 33
+#define MSG_SIZE 1024
+#define PSEUDO_SIZE 100
 
-//whiteboard structure
-typedef struct whiteboard {
-  char content[WHITEBOARD_SIZE];
-  size_t readcount;
-} whiteboard;
-
-//union structure for semaphores
-union semun {
-  int value; /*valeur quand cmd=SETVAL*/
-  struct semid_ds *buf; /*tampon quand cmd=IPC_STAT ou cmd=IPC_SET*/
-  unsigned short *array; /*tableau quand cmd=GETALL ou cmd=SETALL*/
-  struct seminfo *__buf; /*tampon quand cmd=IPC_INFO (sous Linux)*/
-};
+/*STRUCTURES*/
+//message structure exchanged between client and server
+typedef struct message {
+  char text[MSG_SIZE];
+  char pseudo[PSEUDO_SIZE];
+} message;
 
 #endif //_INIT_IPC_H
