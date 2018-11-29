@@ -2,6 +2,7 @@
 #define _SERVER_H
 
 #include <sys/types.h>
+#include <netdb.h>
 #include "init_IPC.h"
 
 #define SHM_WB_CODE 66
@@ -34,5 +35,8 @@ int* init_shm_clients();
 int init_sem();
 union semun init_sem_union(int sem_id);
 void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem);
+int create_socket(int domaine, int type, int protocole, const char* error_msg);
+struct sockaddr_in init_sockaddr(sa_family_t family, in_port_t port, uint32_t s_addr);
+void bind_socket(int socket_fd, struct sockaddr* adr, socklen_t size, const char* error_msg);
 
 #endif //_SERVER_H
