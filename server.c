@@ -125,6 +125,47 @@ void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem
   *unisem = init_sem_union(*sem_id); //initialization of array of sempahores buffer
 }
 
+int create_socket(int domaine, int type, int protocole, const char* error_msg){
+  int server_socket_fd = socket(domaine, type, protocole);
+  if(server_socket_fd == -1){
+    perror(error_msg);
+    exit(EXIT_FAILURE);
+  }
+  printf("server socket created successfully\n");
+
+  return server_socket_fd;
+}
+
+struct sockaddr_in init_sockaddr(sa_family_t family, in_port_t port, uint32_t s_addr){
+  struct sockaddr_in adr;
+  adr.sin_family = family;
+  adr.sin_port = htonl(port);
+  adr.sin_addr.s_addr = s_addr;
+
+  printf("server socket address initialized successfully\n");
+  return adr;
+}
+
+void bind_socket(int socket_fd, struct sockaddr* adr, socklen_t size, const char* error_msg){
+  int bind_res = bind(socket_fd, adr, size);
+
+  if(bind_res == -1){
+    perror(error_msg);
+    exit(EXIT_FAILURE);
+  }
+
+  printf("server socket address bound successfully\n");
+}
+void listen_socket(int socket_fd, int backlog, const char* error_msg){
+  int listen_res = listen(socket_fd, backlog);
+  if(listen_res == -1){
+    perror(error_msg);
+    exit(EXIT_FAILURE);
+  }
+
+  printf("server listening and awaiting connections...\n");
+}
+
 int main(int argc, char* argv[]){
 
   whiteboard* wb = NULL;
@@ -133,73 +174,67 @@ int main(int argc, char* argv[]){
 
   init_IPC(wb, shm_clients, &sem_id, &unisem); //creation and initialization of IPC objects used in the application
 
-  // pid_t ppid = getpid(), pid;
-  // printf("Server Parent Process : %d\n", ppid);
-  //
-  // /*server socket creation*/
-  // int server_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-  // if(server_socket_fd == -1){
-  //   perror("socket creation error");
-  //   exit(EXIT_FAILURE);
-  // }
-  //
-  // printf("server socket created successfully\n");
-  //
-  // /*server socket binding*/
-  // struct sockaddr_in server_sockaddr;
-  // socklen_t server_sockaddr_size = sizeof(struct sockaddr_in);
-  // server_sockaddr.sin_family = AF_INET;
-  // server_sockaddr.sin_port = htonl(PORT_NUMBER);
-  // server_sockaddr.sin_addr.s_addr = INADDR_ANY;
-  //
-  // printf("server socket address initialized successfully\n");
-  //
-  // int bind_res = bind(server_socket_fd, (struct sockaddr*)&server_sockaddr, server_sockaddr_size);
-  // if(bind_res == -1){
-  //   perror("server socket bind error");
-  //   exit(EXIT_FAILURE);
-  // }
-  //
-  // printf("server socket address bound successfully\n");
-  //
-  // /*server socket listening*/
-  // int listen_res = listen(server_socket_fd, BACKLOG);
-  // if(listen_res == -1){
-  //   perror("listen error");
-  //   exit(EXIT_FAILURE);
-  // }
-  //
-  // printf("server listening and awaiting connections...\n");
-  //
-  // /*server accepting connections*/
-  // struct sockaddr_in client_sockaddr;
-  // socklen_t client_sockaddr_size = sizeof(struct sockaddr_in);
-  // int client_socket_fd;
-  // while(1){
-  //   client_socket_fd = accept(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size);
-  //   if(client_socket_fd <= 0){
-  //     perror("server accepting connections error");
-  //     exit(EXIT_FAILURE);
-  //   }
-  //
-  //   pid = fork();
-  //   if (pid == 0){ //server child process for client handling
-  //     int server_fd_close_res = close(server_socket_fd);
-  //     if(server_fd_close_res == -1){
-  //       perror("server socket closing error");
-  //       exit(EXIT_FAILURE);
-  //     }
-  //
-  //     //receive and send messages
-  //   }
-  //   else{
-  //     int client_fd_close_res = close(client_socket_fd);
-  //     if(client_fd_close_res == -1){
-  //       perror("client socket closing error");
-  //       exit(EXIT_FAILURE);
-  //     }
-  //   }
-  // }
+  pid_t ppid = getpid(), pid;
+  printf("Server Parent Process : %d\n", ppid);
+
+  /*server socket creation*/
+  int server_socket_fd = create_socket(AF_INET, SOCK_STREAM, 0, "server socket creation error");
+
+  /*server socket address initialization*/
+  struct sockaddr_in server_sockaddr = init_sockaddr(AF_INET, PORT_NUMBER, INADDR_ANY);
+
+  /*server socket binding*/
+  bind_socket(server_socket_fd, (struct sockaddr*)&server_sockaddr, sizeof(server_sockaddr), "server socket binding error");
+
+  /*server socket listening*/
+  listen_socket(server_socket_fd, BACKLOG, "socket server listen error");
+
+  /*server accepting connections*/
+  struct sockaddr_in client_sockaddr;
+  socklen_t client_sockaddr_size = sizeof(client_sockaddr);
+  int client_socket_fd;
+
+  while(1){
+    client_socket_fd = accept(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size);
+    if(client_socket_fd <= 0){
+      perror("server accepting connections error");
+      exit(EXIT_FAILURE);
+    }
+
+    if ((pid = fork()) == 0){ //server child process for client handling
+      int server_fd_close_res = close(server_socket_fd);
+      if(server_fd_close_res == -1){
+        perror("server socket closing error");
+        exit(EXIT_FAILURE);
+      }
+
+      /*initializing server message and pseudo*/
+      message server_msg;
+      strcpy(server_msg.pseudo, "Server");
+      sprintf(server_msg.text, "%s: Greetings! Please enter your pseudo (maximum of 100 characters) : ", server_msg.pseudo);
+
+      int send_res = send(client_socket_fd, &server_msg, sizeof(server_msg), 0);
+      if(send_res == -1){
+        perror("Message sending error");
+        exit(EXIT_FAILURE);
+      }
+
+      /*receving client message containing his pseudo*/
+      message client_msg;
+      int recv_res = recv(client_socket_fd, &client_msg, sizeof(client_msg), 0);
+      if(recv_res == -1){
+        perror("Message reception error");
+        exit(EXIT_FAILURE);
+      }
+    }
+    else{
+      // int client_fd_close_res = close(client_socket_fd);
+      // if(client_fd_close_res == -1){
+      //   perror("client socket closing error");
+      //   exit(EXIT_FAILURE);
+      // }
+    }
+  }
 
   return EXIT_SUCCESS;
 }
