@@ -1,0 +1,5 @@
+* allow user to change name
+* allow user to send message directly to another user
+* list all users in the chat room
+* quit the chat room
+* implement multiple chatrooms
