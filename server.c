@@ -139,7 +139,7 @@ int create_socket(int domaine, int type, int protocole, const char* error_msg){
 struct sockaddr_in init_sockaddr(sa_family_t family, in_port_t port, uint32_t s_addr){
   struct sockaddr_in adr;
   adr.sin_family = family;
-  adr.sin_port = htonl(port);
+  adr.sin_port = htons(port);
   adr.sin_addr.s_addr = s_addr;
 
   printf("server socket address initialized successfully\n");

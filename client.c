@@ -28,7 +28,7 @@ Main thread AND Emission thread
 6) Ask the name of the client and save it in a variable
 7) Send name to server
 
--- 
+--
 I started the threads at the beginning so that,
 as soon as the client connects to the server, he can
 receive the Welcome message.
@@ -80,13 +80,13 @@ int main(int argc, char* argv[]){
 
 
 	//Create client TCP socket
-	if ((sock= socket (AF_INET, SOCK_STREAM, 0)) <0) { 
-		perror("Error creating socket. Exiting..."); 
+	if ((sock= socket (AF_INET, SOCK_STREAM, 0)) <0) {
+		perror("Error creating socket. Exiting...");
 		exit(2);
 	}
 
 	//Create address structure of the server based on parameters
-	
+
 	/*server_address.sin_family = AF_INET;
 	server_address.sin_addr.s_addr= inet_addr(argv[1]);
 	server_address.sin_port =  htons(argv[2]);
@@ -94,7 +94,7 @@ int main(int argc, char* argv[]){
 
 	server_address.sin_family = AF_INET;
 
-	int s = inet_pton(AF_INET, argv[1], &server_address.sin_addr);
+	int s = inet_pton(AF_INET, argv[1], &server_address.sin_addr.s_addr);
 	if(s <= 0){
        	if (s == 0){
             perror("Not a valid network address. Exiting...");
@@ -107,12 +107,13 @@ int main(int argc, char* argv[]){
     }
 
     server_address.sin_port =  htons(atoi(argv[2]));
+		printf("server socket address initialized successfully\n");
 
 	//Connect to server
 	if (connect(sock, (struct sockaddr *) &server_address, sizeof(server_address))<0) {
   		perror("Error connecting to server. Exiting...");
   		exit(5);
- 	} 	
+ 	}
 
  	//Start reception thread
  	if (pthread_create(&idTh, NULL, receptionThread, NULL) != 0){
@@ -120,8 +121,9 @@ int main(int argc, char* argv[]){
  		exit(6);
  	}
 
+	while(1);
 
 
 
- 
+
 }

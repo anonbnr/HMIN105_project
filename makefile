@@ -1,16 +1,17 @@
 CC=gcc
 CFLAGS=-c -g -Wall
+THREAD=-lpthread
 
 all: server client
 
-client: client.o server.o init_IPC.h client.h
+client: client.o client.h init_IPC.h
 	@echo creating client executable
-	$(CC) -o $@ $?
+	$(CC) -o $@ $@.o $(THREAD)
 	@echo created executable successfully
 
-server: server.o init_IPC.h server.h
+server: server.o server.h init_IPC.h
 	@echo creating server executable
-	$(CC) -o $@ $?
+	$(CC) -o $@ $@.o $(THREAD)
 	@echo created executable successfully
 	@echo
 
@@ -20,7 +21,7 @@ server.o: server.c server.h init_IPC.h
 	@echo finished compiling
 	@echo
 
-client.o: client.c client.h init_IPC.h server.o server.h
+client.o: client.c client.h init_IPC.h
 	@echo compiling client program
 	$(CC) $(CFLAGS) client.c
 	@echo finished compiling
