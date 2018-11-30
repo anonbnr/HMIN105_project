@@ -5,4 +5,4 @@
 
 typedef struct thread_params {
 	int sockfd;
-}
+} thread_params;

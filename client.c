@@ -60,17 +60,38 @@ This thread will be in an infinite while loop
 
 void *receptionThread(void *par){
 
+
+	/*
+		char *pos;
+		if( (pos = strchr(pseudo, '\n')) != NULL)
+			*pos = '\0';
+	*/
 	//get thread parameters
-	thread_params *params = (thread_params*) par; 
+	thread_params *params = (thread_params*) par;
 	int sockfd = params->sockfd;
 	message msg;
 
 	while(1){
 		/*printf("Reception thread.\n");
 		sleep(2);*/
-		
+
 		//receive message
-		recv(sockfd, &msg, MSG_SIZE, 0);
+		recv(sockfd, &msg, sizeof(msg), 0);
+
+		/*
+		//cut the last character from the pseudo and the message, which is a \n
+		int sizepseudo = strlen(msg.pseudo);
+		int sizetext = strlen(msg.text);
+
+		printf("pseudo before: %s\n", msg.pseudo);
+		printf("text before: %s\n", msg.text);
+		char *pos;
+		if( (pos = strchr(msg.pseudo, '\n')) != NULL)
+			*pos = '\0';
+
+		if( (pos = strchr(msg.text, '\n')) != NULL)
+			*pos = '\0';
+		*/
 		//print message on screen
 		printf("%s: %s\n", msg.pseudo, msg.text);
 		//empty message structure
@@ -141,9 +162,13 @@ int main(int argc, char* argv[]){
 
  	//Get client's pseudo after the server asks for it
  	fgets(pseudo, PSEUDO_SIZE, stdin);
-
+ 	printf("pseudo before: %s", pseudo);
+ 	char *pos;
+		if( (pos = strchr(pseudo, '\n')) != NULL)
+			*pos = '\0';
+	printf("pseudo after: %s\n", pseudo);
  	//test if it was read right
- 	printf("Hello %s, enjoy chatting and remember to remaind civil.\n", pseudo);
+ 	//printf("Hello %s, enjoy chatting and remember to remaind civil.\n", pseudo);
 
  	message msgpseudo;
  	strcpy(msgpseudo.pseudo, pseudo);

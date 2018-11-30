@@ -162,11 +162,10 @@ void listen_socket(int socket_fd, int backlog, const char* error_msg){
     perror(error_msg);
     exit(EXIT_FAILURE);
   }
-
-  printf("server listening and awaiting connections...\n");
 }
 
 int accept_socket(int socket_fd, struct sockaddr *adr, socklen_t *size, const char* error_msg){
+  printf("server listening and awaiting connections...\n");
   int client_socket_fd = accept(socket_fd, adr, size);
   if(client_socket_fd <= 0){
     perror(error_msg);
@@ -226,18 +225,16 @@ int main(int argc, char* argv[]){
   /*server accepting connections*/
   struct sockaddr_in client_sockaddr;
   socklen_t client_sockaddr_size = sizeof(client_sockaddr);
-  int client_socket_fd;
 
   while(1){
-    client_socket_fd = accept_socket(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size, "server accepting connections error");
-
+    int client_socket_fd = accept_socket(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size, "server accepting connections error");
     if ((pid = fork()) == 0){ //server child process for client handling
       close_socket(server_socket_fd, "server socket closing error");
 
       /*initializing server message and pseudo*/
       message server_msg;
       strcpy(server_msg.pseudo, "Server");
-      sprintf(server_msg.text, "%s: Greetings! Please enter your pseudo (maximum of 100 characters) : ", server_msg.pseudo);
+      strcpy(server_msg.text, "Greetings! Please enter your pseudo (maximum of 100 characters)");
 
       send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
 
