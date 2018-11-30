@@ -61,7 +61,7 @@ This thread will be in an infinite while loop
 void *receptionThread(void *par){
 
 	//get thread parameters
-	thread_params *params = par; 
+	thread_params *params = (thread_params*) par; 
 	int sockfd = params->sockfd;
 	message msg;
 
@@ -70,9 +70,9 @@ void *receptionThread(void *par){
 		sleep(2);*/
 		
 		//receive message
-		recv(sockfd, msg, MSG_SIZE, 0);
+		recv(sockfd, &msg, MSG_SIZE, 0);
 		//print message on screen
-		printf("%s: %s", msg.pseudo, msg.text);
+		printf("%s: %s\n", msg.pseudo, msg.text);
 		//empty message structure
 
 	}
@@ -82,6 +82,7 @@ int main(int argc, char* argv[]){
 	pthread_t idTh;
 	int sock;
 	struct sockaddr_in server_address;
+	char pseudo[PSEUDO_SIZE];
 
 
 	//argument check
@@ -129,15 +130,27 @@ int main(int argc, char* argv[]){
   		exit(5);
  	}
 
+ 	//initialize parameter to be passed to the thread
+ 	thread_params *params = malloc(sizeof(thread_params));
+ 	params->sockfd = sock;
  	//Start reception thread
- 	if (pthread_create(&idTh, NULL, receptionThread, NULL) != 0){
+ 	if (pthread_create(&idTh, NULL, receptionThread, params) != 0){
  		perror("Error in creating thread. Exiting...");
  		exit(6);
  	}
 
-	while(1);
+ 	//Get client's pseudo after the server asks for it
+ 	fgets(pseudo, PSEUDO_SIZE, stdin);
 
+ 	//test if it was read right
+ 	printf("Hello %s, enjoy chatting and remember to remaind civil.\n", pseudo);
 
+ 	message msgpseudo;
+ 	strcpy(msgpseudo.pseudo, pseudo);
+ 	send(sock, &msgpseudo, sizeof(msgpseudo), 0);
 
+ 	while(1){
+
+ 	}
 
 }
