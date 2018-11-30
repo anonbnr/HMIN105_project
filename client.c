@@ -59,9 +59,22 @@ This thread will be in an infinite while loop
 //thread de reception
 
 void *receptionThread(void *par){
+
+	//get thread parameters
+	thread_params *params = par; 
+	int sockfd = params->sockfd;
+	message msg;
+
 	while(1){
-		printf("Reception thread.\n");
-		sleep(2);
+		/*printf("Reception thread.\n");
+		sleep(2);*/
+		
+		//receive message
+		recv(sockfd, msg, MSG_SIZE, 0);
+		//print message on screen
+		printf("%s: %s", msg.pseudo, msg.text);
+		//empty message structure
+
 	}
 }
 
@@ -69,6 +82,7 @@ int main(int argc, char* argv[]){
 	pthread_t idTh;
 	int sock;
 	struct sockaddr_in server_address;
+
 
 	//argument check
 

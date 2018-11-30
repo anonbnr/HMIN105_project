@@ -3,3 +3,6 @@
 * list all users in the chat room
 * quit the chat room
 * implement multiple chatrooms
+* server can disconnect the client
+* discard empty message
+* make the message display prettier
