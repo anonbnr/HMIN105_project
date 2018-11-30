@@ -166,6 +166,40 @@ void listen_socket(int socket_fd, int backlog, const char* error_msg){
   printf("server listening and awaiting connections...\n");
 }
 
+int accept_socket(int socket_fd, struct sockaddr *adr, socklen_t *size, const char* error_msg){
+  int client_socket_fd = accept(socket_fd, adr, size);
+  if(client_socket_fd <= 0){
+    perror(error_msg);
+    exit(EXIT_FAILURE);
+  }
+
+  return client_socket_fd;
+}
+
+void close_socket(int socket_fd, const char* error_msg){
+  int close_res = close(socket_fd);
+  if(close_res == -1){
+    perror(error_msg);
+    exit(EXIT_FAILURE);
+  }
+}
+
+void send_message(int socket_fd, const void *buffer, size_t buffer_size, int permissions, const char* error_msg){
+  int send_res = send(socket_fd, buffer, buffer_size, permissions);
+  if(send_res == -1){
+    perror(error_msg);
+    exit(EXIT_FAILURE);
+  }
+}
+
+void recv_message(int socket_fd, void *buffer, size_t buffer_size, int permissions, const char* error_msg){
+  int recv_res = recv(socket_fd, buffer, buffer_size, permissions);
+  if(recv_res == -1){
+    perror(error_msg);
+    exit(EXIT_FAILURE);
+  }
+}
+
 int main(int argc, char* argv[]){
 
   whiteboard* wb = NULL;
@@ -195,37 +229,23 @@ int main(int argc, char* argv[]){
   int client_socket_fd;
 
   while(1){
-    client_socket_fd = accept(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size);
-    if(client_socket_fd <= 0){
-      perror("server accepting connections error");
-      exit(EXIT_FAILURE);
-    }
+    client_socket_fd = accept_socket(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size, "server accepting connections error");
 
     if ((pid = fork()) == 0){ //server child process for client handling
-      int server_fd_close_res = close(server_socket_fd);
-      if(server_fd_close_res == -1){
-        perror("server socket closing error");
-        exit(EXIT_FAILURE);
-      }
+      close_socket(server_socket_fd, "server socket closing error");
 
       /*initializing server message and pseudo*/
       message server_msg;
       strcpy(server_msg.pseudo, "Server");
       sprintf(server_msg.text, "%s: Greetings! Please enter your pseudo (maximum of 100 characters) : ", server_msg.pseudo);
 
-      int send_res = send(client_socket_fd, &server_msg, sizeof(server_msg), 0);
-      if(send_res == -1){
-        perror("Message sending error");
-        exit(EXIT_FAILURE);
-      }
+      send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
 
-      /*receving client message containing his pseudo*/
+      /*receiving client message containing his pseudo*/
       message client_msg;
-      int recv_res = recv(client_socket_fd, &client_msg, sizeof(client_msg), 0);
-      if(recv_res == -1){
-        perror("Message reception error");
-        exit(EXIT_FAILURE);
-      }
+      recv_message(client_socket_fd, &client_msg, sizeof(client_msg), 0, "Message reception error");
+
+      printf("client pseudo : %s\n", client_msg.pseudo);
     }
     else{
       // int client_fd_close_res = close(client_socket_fd);
