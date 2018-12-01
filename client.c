@@ -77,7 +77,7 @@ void *receptionThread(void *par){
 		sleep(2);*/
 
 		//receive message
-		recv(sockfd, &msg, sizeof(msg), 0);
+		recv_message(sockfd, &msg, sizeof(msg), 0, "Message reception error");
 
 		/*
 		//cut the last character from the pseudo and the message, which is a \n
@@ -166,7 +166,7 @@ int main(int argc, char* argv[]){
 
  	message msgpseudo;
  	strcpy(msgpseudo.pseudo, pseudo);
- 	send(sock, &msgpseudo, sizeof(msgpseudo), 0);
+ 	send_message(sock, &msgpseudo, sizeof(msgpseudo), 0, "Message sending error");
 
  	while(1){
 

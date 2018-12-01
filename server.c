@@ -131,7 +131,8 @@ int main(int argc, char* argv[]){
   int *shm_clients = NULL, sem_id;
   union semun unisem;
 
-  init_IPC(wb, shm_clients, &sem_id, &unisem); //creation and initialization of IPC objects used in the application
+  /*creation and initialization of IPC objects used in the application*/
+  init_IPC(wb, shm_clients, &sem_id, &unisem);
 
   pid_t ppid = getpid(), pid;
   printf("Server Parent Process : %d\n", ppid);
