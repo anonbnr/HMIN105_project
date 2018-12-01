@@ -1,5 +1,5 @@
-#ifndef _INIT_IPC_H
-#define _INIT_IPC_H
+#ifndef _UTILITY_H
+#define _UTILITY_H
 
 #define WHITEBOARD_SIZE 1000000
 #define MSG_SIZE 1024
@@ -12,4 +12,4 @@ typedef struct message {
   char pseudo[PSEUDO_SIZE];
 } message;
 
-#endif //_INIT_IPC_H
+#endif //_UTILITY_H

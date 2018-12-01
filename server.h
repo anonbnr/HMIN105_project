@@ -1,9 +1,8 @@
 #ifndef _SERVER_H
 #define _SERVER_H
-
 #include <sys/types.h>
 #include <netdb.h>
-#include "init_IPC.h"
+#include "utility.h"
 
 #define SHM_WB_CODE 66
 #define SHM_CLIENTS_CODE 99
@@ -35,12 +34,5 @@ int* init_shm_clients();
 int init_sem();
 union semun init_sem_union(int sem_id);
 void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem);
-int create_socket(int domaine, int type, int protocole, const char* error_msg);
-struct sockaddr_in init_sockaddr(sa_family_t family, in_port_t port, uint32_t s_addr);
-void bind_socket(int socket_fd, struct sockaddr *adr, socklen_t size, const char* error_msg);
-int accept_socket(int socket_fd, struct sockaddr *adr, socklen_t *size, const char* error_msg);
-void close_socket(int socket_fd, const char* error_msg);
-void send_message(int socket_fd, const void *buffer, size_t buffer_size, int permissions, const char* error_msg);
-void recv_message(int socket_fd, void *buffer, size_t buffer_size, int permissions, const char* error_msg);
 
 #endif //_SERVER_H

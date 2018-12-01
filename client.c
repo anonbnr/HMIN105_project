@@ -10,8 +10,9 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
-#include "init_IPC.h"
 #include "client.h"
+#include "socket_wrapper.h"
+#include "utility.h"
 
 /*
 ****************************
@@ -114,12 +115,8 @@ int main(int argc, char* argv[]){
 	  exit(1);
 	 }
 
-
 	//Create client TCP socket
-	if ((sock= socket (AF_INET, SOCK_STREAM, 0)) <0) {
-		perror("Error creating socket. Exiting...");
-		exit(2);
-	}
+	sock = create_socket(AF_INET, SOCK_STREAM, 0, "client socket creation error");
 
 	//Create address structure of the server based on parameters
 
@@ -146,10 +143,7 @@ int main(int argc, char* argv[]){
 		printf("server socket address initialized successfully\n");
 
 	//Connect to server
-	if (connect(sock, (struct sockaddr *) &server_address, sizeof(server_address))<0) {
-  		perror("Error connecting to server. Exiting...");
-  		exit(5);
- 	}
+	connect_socket(sock, (struct sockaddr*) &server_address, sizeof(server_address), "Error connecting to server. Exiting...");
 
  	//initialize parameter to be passed to the thread
  	thread_params *params = malloc(sizeof(thread_params));
