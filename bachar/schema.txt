@@ -1,8 +1,340 @@
+DESCRIPTION:
+============
+- whiteboard :
+  a. array of products' stocks (static with a maximum size)
+  b. number_of_stocks:
+    square- increments/decrements upon adding/removing a stock
+    square- is checked before adding a stock
+- stock :
+  a. name (the name of the product in the stock) (const char*) (maximum product's name size)
+  b. price (the price of the product in the stock) (double)(> 0)
+  c. quantity (the quantity of products in the stock) (int) (>= 0)
+  d. producer (the name of the product's producer) (const char*) (maximum pseudo's name size)
+- actions :
+  a. producer :
+    square- "add qty product_name price":
+      - product_name is unique for the producer (a producer cannot have two stocks of the same product (having the same name))
+      - qty > 0
+      - price > 0
+      - update_string: "pseudo added a stock of qty product_name for price/piece"
+    square- "addTo product_name qty":
+      - product_name should already exist for the producer
+      - qty > 0
+      - update_string: "pseudo added qty to the product_name stock"
+    square- "modifyPrice product_name new_price":
+      - product_name should already exist for the producer
+      - new_price > 0
+      - update_string: "pseudo changed the price of prod_name from old_price to new_price"
+    square- "removeFrom product_name qty":
+      - product_name should already exist for the producer
+      - qty > 0 && qty <= old_qty
+      - update_string: "pseudo removed qty from the product_name stock"
+    square- "removeStock product_name":
+      - product_name should already exist for the producer
+      - update_string: "pseudo removed his stock of product_name"
+  b. consumer:
+    square- "buy qty product_name from producer_pseudo":
+      - producer_name already exists
+      - product_name already exists for producer
+      - qty > 0 && qty <= old_qty
+      - update_string: "pseudo bought qty product_name from producer_pseudo (total_price)"
+  c. both (consumer/producer):
+    square- "quit"
+      - producer/consumer exits the market and all of his associated product stocks will be removed from the market (if he has any)
+      - update_string: "pseudo has left the market"
+    square- "display"
+      - list the product stocks and their respective status
+      - sent by the server in the initial welcoming message
+    square- "help"
+      - list the possible actions that a user can undertake
+
+BASIC FUNCTIONALITY ALGORITHMS:
+===============================
 SERVER:
 =======
+//stock structure
+typdef struct stock{
+  char name[MAX_PRODUCT_NAME];
+  char producer[MAX_PRODUCER_NAME];
+  double price;
+  int quantity;
+} stock;
+
+//whiteboard structure
+typedef struct whiteboard {
+  stock content[MAX_STOCK * sizeof(stock)];
+  int number_of_stocks;
+} whiteboard;
+
+void init_stock(stock, const char* producer, const char* product_name, quantity, price){
+  stock.producer = producer; //use strcpy
+  stock.name = product_name; //use strcpy
+  stock.price = price;
+  stock.quantity = quantity;
+}
+
+void empty_stock(stock){
+  memset(stock, NULL, sizeof(stock));
+}
+
+char* stock_toString(stock){
+  int quantity_length = snprintf(NULL, 0, "%d", stock->quantity);
+  int price_length = snprintf(NULL, 0, "lf", stock->price);
+  size_t size = quantity_length + price_length + strlen(stock->producer) + strlen(stock->name) + 13;
+  char result[size];
+  sprintf(result, "[%s] %s %d %lf euros.\n", stock->producer, stock->name, stock->quantity, stock->price);
+  return result;
+}
+
+void init_whiteboard(wb){
+  memset(wb.content, NULL, stock_size * sizeof(stock));
+  wb.number_of_stocks = 0;
+}
+
+void greeting_message(){
+  print("Hello pseudo and welcome the open-market");
+  status_message();
+  print("input \"help\" for a list of possible actions\n");
+  print("You can now perform actions in the market\n");
+}
+
+void status_message(){
+  print("Stocks:\n=========\n");
+  for every stock in market:
+    display stock information;
+}
+
+READ/WRITE INITIAL SCHEMA ON SEMAPHORES:
+================================
+//in this schema, we only have one semaphore (a mutex) initialized to 1
+Read/Write
+lock(RW_mutex);
+  critical section
+unlock(RW mutex);
+
+char* add(wb, pseudo, args, index){ //add product_name qty price
+  int quantity = (int) strol(args[1], NULL, 10);
+  double price = (double) strtod(args[2], NULL);
+  init_stock(&(wb->content[index]), pseudo, args[0], quantity, price);
+  size_t size = strlen(pseudo) + strlen(args[0]) + strlen(args[1]) + strlen(args[2]) + 37;
+  char return_msg[size];
+  sprintf("\"%s\" added a stock of %s \"%s\" for %s/piece.", pseudo, args[1], args[0], args[2]);
+  return return_msg;
+}
+
+char* addTo(wb, pseudo, args, index){ //addTo product_name qty
+  int quantity = (int) strol(args[1], NULL, 10);
+  (wb->content[index]).quantity += quantity;
+  size_t size = strlen(pseudo) + strlen(args[0]) + strlen(args[1]) + 25;
+  char return_msg[size];
+  sprintf("\"%s\" added %s to the \"%s\" stock.", pseudo, args[1], args[0]);
+  return return_msg;
+}
+
+char* removeFrom(wb, pseudo, args, index){ //removeFrom product_name qty
+  int quantity = (int) strol(args[1], NULL, 10);
+  (wb->content[index]).quantity -= quantity;
+  size_t size = strlen(pseudo) + strlen(args[0]) + strlen(args[1]) + 30;
+  char return_msg[size];
+  sprintf("\"%s\" removed %s from the \"%s\" stock.", pseudo, args[1], args[0]);
+  return return_msg;
+}
+
+char* removeStock(wb, pseudo, args, index){ //removeStock product_name
+  empty_stock(&(wb->content[index]));
+  size_t size = strlen(pseudo) + strlen(args[0]) + 26;
+  char return_msg[size];
+  sprintf("\"%s\" removed their \"%s\" stock.", pseudo, args[0]);
+  return return_msg;
+}
+
+void quit(wb, pseudo){ //quit
+  for (int i=0; i<WHITEBOARD_SIZE; i++)
+    if(wb->content[i] != NULL)
+      if((wb->content[i]).producer == pseudo)
+        empty_stock(&(wb->content[i]));
+}
+
+char* display(wb){ //display
+  size_t size = 0;
+  for (int i=0; i<WHITEBOARD_SIZE; i++)
+    if(wb->content[i] != NULL)
+      size += strlen(stock_toString());
+
+  char result[size] = "";
+  int j=0;
+  for (int i=0; i<WHITEBOARD_SIZE; i++)
+    if(wb->content[i] != NULL){
+      strcat(result[j], stock_toString(wb->content[i]));
+      j++;
+    }
+
+  return result;
+}
+
+int validate_action(action, pseudo, args, return_msg){
+  //the action's format is validated by the client, we still have to check the actual values
+  //validate the values by accessing the whiteboard and verifying them accordingly
+
+  if(action == "add"){ //add product_name qty price
+    // check for semaphores and wb shared segment
+    if (producer & stock already exist){
+      return_msg = "product_stock already exists";
+      return -1; //(error)
+    }
+    else{
+      return_msg = "add success"; //make it more explicit
+      return index; //obtained through the for loop
+    }
+  }
+  else if (action == "addTo"){ //addTo product_name qty
+    // check for semaphores and wb shared segment
+    if (not(producer & stock already exist)){
+      return_msg = "couldn't find the specified product for producer";
+      return -1; //(error)
+    }
+    else{
+      return_msg = "addTo success"; //make it more explicit
+      return index; //obtained through the for loop
+    }
+  }
+  else if (action == "removeFrom"){ //removeFrom product_name qty
+    // check for semaphores and wb shared segment
+    if (not(producer & stock already exist)){
+      return_msg = "couldn't find the specified product for producer";
+      return -1; //(error)
+    }
+    else{
+      return_msg = "removeFrom success"; //make it more explicit
+      return index; //obtained through the for loop
+    }
+  }
+  else if (action == "modifyPrice"){ //modifyPrice product_name new_price
+    // check for semaphores and wb shared segment
+    if (not(producer & stock already exist)){
+      return_msg = "couldn't find the specified product for producer";
+      return -1; //(error)
+    }
+    else{
+      return_msg = "modifyPrice success"; //make it more explicit
+      return index; //obtained through the for loop
+    }
+  }
+  else if (action == "removeStock"){ //removeStock product_name
+    // check for semaphores and wb shared segment
+    if (not(producer & stock already exist)){
+      return_msg = "couldn't find the specified product for producer";
+      return -1; //(error)
+    }
+    else{
+      return_msg = "removeStock success"; //make it more explicit
+      return index; //obtained through the for loop
+    }
+  }
+
+  else if(action == "buy"){ //buy qty product_name from producer_pseudo
+    //check for semaphores and wb shared segment
+    if (not(producer & stock already exist)){
+      return_msg = "couldn't find the specified product for producer";
+      return -1; //(error)
+    }
+    else if(qty <= qty_stock){
+      return_msg = "removeStock success"; //make it more explicit
+      return index; //obtained through the for loop
+    }
+    else{
+      return_msg = "insufficient quantity in stock";
+      return -1; //(error)
+    }
+  }
+  else if(action == "quit"){ //quit
+    //check for semaphores and wb shared segment
+    return_msg = "quit market success"; //make it more explicit
+    return 0; //success code
+  }
+  else if(action == "display"){ //display
+    //check for semaphores and wb shared segment
+    return_msg = wb.number_of_stocks; //make it more explicit
+    return 0; //index of first stock
+  }
+}
+
+String execute_action(action, pseudo, wb){
+  String notification_update = "";
+  char* action_array[] = split(action, " "); //split is shared between client and server
+  size_t length = sizeof(action_array) / sizeof(char*);
+  char* args[] = malloc((length-1) * sizeof(char*)); //dynamic allocation
+  validation_result = validate_action(action_array[0], pseudo, wb, &args, notification_update);
+  if(validation_result >= 0){
+    if(action_array[0] == "add"){ add qty product_name price
+      strcpy(args[0], action_array[1]); //adding quantity argument
+      strcpy(args[1], action_array[2]); //adding product_name argument
+      strcpy(args[2], action_array[3]); //adding price argument
+      notification_update = add(wb, pseudo, &args);
+    }
+    else if (action_array[0] == "addTo")
+      notification_update = addTo(wb, pseudo, &args);
+    else if (action_array[0] == "removeFrom")
+      notification_update = removeFrom(wb, pseudo, &args);
+    else if (action_array[0] == "removeStock")
+      notification_update = removeStock(wb, pseudo, &args);
+    else if (action_array[0] == "modifyPrice")
+      notification_update = modifyPrice(wb, pseudo, &args);
+    else if (action_array[0] == "buy")
+      notification_update = buy(wb, pseudo, &args);
+    else if (action_array[0] == "quit")
+      quit(wb, pseudo, &args);
+    else if (action_array[0] == "display")
+      notification_update = display(wb, pseudo, &args); //to be concatenated with the result of the display function
+  }
+  free(args);
+  return notification_update;
+}
+
+CLIENT:
+=======
+NOTES:
+======
+maximum accepted quantity = 5 digits (99999) (it affects the add return result (and other similar functions))
+int validate_pseudo(pseudo){
+  if contains(pseudo, numbers | special characters)
+    return false;
+  else
+    return true;
+}
+
+int validate_action(action){
+  int valid = 0; //action valid by default
+  String[] fields = split(action, " "); //function needs to be defined by us
+  if fields[0] == "any_permissible_action"{
+    //action name is valid
+    verify argument number; //if invalid return -2
+    verify argument types; //if invalid return -3
+    //every error should have its own corresponding error code
+  }
+  else return -1; //action name is invalid
+}
+
+void input_action(){
+  do {
+    print("What do you want to do ?");
+    fgets(action, size_of_action, stdin);
+  } while(validate_action(action) != 0);
+}
+
+BONUS FUNCTIONALITY:
+====================
+- adding credit for producer and consumer which gets affected during the buying/selling transactions
+
+
+SERVER:
+=======
+Phase 1:
+========
 PPID (Parent Process):
 ======================
 - initialize shared memory segment (designating the whiteboard) [PPID and shared memory segment]
+- create socket and bind it
   while true do
   - listen for connections [PPID and client]
   - accept connections [PPID and client]
@@ -10,12 +342,19 @@ PPID (Parent Process):
 
 PID (Child Process):
 ====================
+Phase 2:
+========
 /*MAIN THREAD*/
-- send whiteboard content to client [PID and client]
+- ask for pseudo (send message)
+- receive pseudo from client (receive message)
+
+Phase 3:
+========
+- send greeting message including stocks' status and help message to client [PID and client]
 while true do
-  - wait for modifications from client [PID and client]
-  - receive modifications from client [PID and client]
-  - update the content of the shared memory segment (the content of the whiteboard) through an access-synchronizing semaphore [PID and shared memory segment]
+  - wait for actions from client [PID and client]
+  - receive actions from client [PID and client]
+  - update the content of market (the content of the whiteboard) through an access-synchronizing semaphore [PID and shared memory segment]
   - broadcast the updates to other PIDs through a communication-dedicated semaphore [PID and PIDs]
 
 /*SECONDARY THREAD*/
@@ -25,11 +364,15 @@ while true do
 
 CLIENT:
 =======
+Phase 2:
+========
 /*MAIN THREAD*/
-- receive the content of the whiteboard upon creation of the corresponding PID [client and PID]
+- receive the pseudo message (receive message)
+- send the pseudo (send message)
+- receive welcoming message and the stocks' status from the corresponding PID [client and PID] (receive message)
 while true do
-  - introduce modifications
-  - send modifications to PID [client and PID]
+  - execute actions
+  - send results to PID [client and PID]
 
 /*SECONDARY THREAD*/
 while whiteboard updated by other clients do

@@ -53,6 +53,20 @@ int sem_id_reception(key_t sem_key, size_t sems, int permissions, const char* er
   return sem_id;
 }
 
+void init_sem_op_buf(struct sembuf* op, unsigned short sem_num, short sem_op, short sem_flg){
+  op->sem_num = sem_num;
+  op->sem_op = sem_op;
+  op->sem_flg = sem_flg;
+}
+
+void sem_operation(int sem_id, struct sembuf *sops, size_t nops, const char* error_msg){
+  int semop_res = semop(sem_id, sops, nops);
+  if (semop_res == -1){
+    perror(error_msg);
+    exit(EXIT_FAILURE);
+  }
+}
+
 whiteboard* init_wb(){
   /*key generation for whiteboard*/
   key_t wb_key = ipc_key_generation("ipc", SHM_WB_CODE, "whiteboard key generation error");
@@ -102,6 +116,9 @@ union semun init_sem_union(int sem_id){
 
   unisem.value = 0;
   semctl(sem_id, 2, SETVAL, unisem); //initialization of server child process communication semaphore
+
+  unisem.value = 1;
+  semctl(sem_id, 3, SETVAL, unisem); //initialization of shared segment for connected clients mutex
   printf("semaphore array initialized successfully\n");
 
   return unisem;
@@ -112,7 +129,7 @@ int init_sem(){
   key_t sem_key = ipc_key_generation("ipc", SEM_CODE, "semaphore array key generation error");
 
   /*création d'un tableau de sémaphores et obtention de son identifiant interne*/
-  int sem_id = sem_id_reception(sem_key, 3, IPC_CREAT | 0666, "semaphore array creation error");
+  int sem_id = sem_id_reception(sem_key, 4, IPC_CREAT | 0666, "semaphore array creation error");
   printf("semaphore array id : %d\n", sem_id);
 
   return sem_id;
@@ -125,15 +142,59 @@ void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem
   *unisem = init_sem_union(*sem_id); //initialization of array of sempahores buffer
 }
 
+void increment_connected_clients(int *shm_clients, int sem_id){
+  printf("Connected clients (before) : %d\n", *shm_clients);
+  struct sembuf op_buf;
+
+  /*initialization of the semaphore operation buffer for the wait semaphore operation*/
+  init_sem_op_buf(&op_buf, 3, -1, SEM_UNDO);
+
+  /*acquiring of the mutex on shared segment memory for connected clients*/
+  sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
+
+  /*incrementing the number of clients*/
+  *shm_clients = *shm_clients + 1;
+
+  /*initialization of the semaphore operation buffer for the signal semaphore operation*/
+  init_sem_op_buf(&op_buf, 3, 1, SEM_UNDO);
+
+  /*liberation of the mutex on shared segment memory for connected clients*/
+  sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
+
+  printf("Connected clients (after) : %d\n", *shm_clients);
+}
+
+void decrement_connected_clients(int *shm_clients, int sem_id){
+  printf("Connected clients (before) : %d\n", *shm_clients);
+  struct sembuf op_buf;
+
+  /*initialization of the semaphore operation buffer for the wait semaphore operation*/
+  init_sem_op_buf(&op_buf, 3, -1, SEM_UNDO);
+
+  /*acquiring of the mutex on shared segment memory for connected clients*/
+  sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
+
+  /*decrementing the number of clients*/
+  *shm_clients = *shm_clients - 1;
+
+  /*initialization of the semaphore operation buffer for the signal semaphore operation*/
+  init_sem_op_buf(&op_buf, 3, 1, SEM_UNDO);
+
+  /*liberation of the mutex on shared segment memory for connected clients*/
+  sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
+
+  printf("Connected clients (after) : %d\n", *shm_clients);
+}
+
 int main(int argc, char* argv[]){
 
   whiteboard* wb = NULL;
-  int *shm_clients = NULL, sem_id;
+  int *shm_clients = malloc(sizeof(int));
+  int sem_id;
   union semun unisem;
 
   /*creation and initialization of IPC objects used in the application*/
   init_IPC(wb, shm_clients, &sem_id, &unisem);
-
   pid_t ppid = getpid(), pid;
   printf("Server Parent Process : %d\n", ppid);
 
@@ -157,6 +218,8 @@ int main(int argc, char* argv[]){
     int client_socket_fd = accept_socket(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size, "server accepting connections error");
     if ((pid = fork()) == 0){ //server child process for client handling
       close_socket(server_socket_fd, "server socket closing error");
+      increment_connected_clients(shm_clients, sem_id);
+      char quit_msg[2] = ""; //":q"
 
       /*initializing server message and pseudo*/
       message server_msg;
@@ -165,11 +228,39 @@ int main(int argc, char* argv[]){
 
       send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
 
-      /*receiving client message containing his pseudo*/
+      /*receiving client pseudo message*/
       message client_msg;
       recv_message(client_socket_fd, &client_msg, sizeof(client_msg), 0, "Message reception error");
 
-      printf("client pseudo : %s\n", client_msg.pseudo);
+      do {
+        //wait for messages sent by client
+        recv_message(client_socket_fd, &client_msg, sizeof(client_msg), 0, "Message reception error");
+
+        //if client wants to quit the chatroom
+        if(strcmp(quit_msg, client_msg.text) == 0){
+          strcpy(server_msg.text, "Bye Bye...");
+          send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
+          close_socket(client_socket_fd, "client socket closing error");
+          exit(EXIT_SUCCESS);
+        }
+
+        else{
+          /*
+          lock write mutex
+            write the message on the whiteboard
+            printf("CHATROOM\n========\n%s\n", *wb);
+            lock semaphore of connected clients
+              get number of connected clients
+              initialize semaphore of communicating child processes to number of clients * 2
+            unlock semaphore of connected clients
+            lock semaphore of communicating child processes
+            send whiteboard content
+            wait for zero for semaphore communicating child processes
+          */
+        }
+
+      } while(strcmp(quit_msg, client_msg.text));
+
     }
     else{
       // int client_fd_close_res = close(client_socket_fd);
@@ -179,6 +270,8 @@ int main(int argc, char* argv[]){
       // }
     }
   }
+
+  free(shm_clients);
 
   return EXIT_SUCCESS;
 }
