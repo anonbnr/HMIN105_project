@@ -3,73 +3,22 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <netdb.h>
-#include <arpa/inet.h>
 #include <pthread.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
 #include "server.h"
-#include "socket_wrapper.h"
+#include "wrapper/ipc_wrapper.h"
+#include "wrapper/socket_wrapper.h"
 
-key_t ipc_key_generation(const char* file, int code, const char* error_msg){
-  key_t ipc_key = ftok(file, code);
-  if (ipc_key == -1){
-    perror(error_msg);
-    exit(EXIT_FAILURE);
-  }
-
-  return ipc_key;
+/*FUNCTIONS*/
+//whiteboard functions
+void init_whiteboard(whiteboard *wb){
+  memset(wb->content, 0, MAX_STOCK * sizeof(stock));
+  wb->nb_stocks = 0;
 }
 
-int shm_id_reception(key_t shm_key, size_t size, int permissions, const char* error_msg){
-  int shm_id = shmget(shm_key, size, permissions);
-  if(shm_id == -1){
-    perror(error_msg);
-    exit(EXIT_FAILURE);
-  }
-
-  return shm_id;
-}
-
-void *shm_attachment(int shm_id, const void *shmaddr, int permissions, const char* error_msg){
-  void *shm = shmat(shm_id, shmaddr, permissions);
-  if(shm == (void*) -1){
-    perror(error_msg);
-    exit(EXIT_FAILURE);
-  }
-
-  return shm;
-}
-
-int sem_id_reception(key_t sem_key, size_t sems, int permissions, const char* error_msg){
-  int sem_id = semget(sem_key, sems, permissions);
-  if(sem_id == -1){
-    perror(error_msg);
-    exit(EXIT_FAILURE);
-  }
-
-  return sem_id;
-}
-
-void init_sem_op_buf(struct sembuf* op, unsigned short sem_num, short sem_op, short sem_flg){
-  op->sem_num = sem_num;
-  op->sem_op = sem_op;
-  op->sem_flg = sem_flg;
-}
-
-void sem_operation(int sem_id, struct sembuf *sops, size_t nops, const char* error_msg){
-  int semop_res = semop(sem_id, sops, nops);
-  if (semop_res == -1){
-    perror(error_msg);
-    exit(EXIT_FAILURE);
-  }
-}
-
-whiteboard* init_wb(){
+//ipc initialization functions
+whiteboard* init_wb_shm(){
   /*key generation for whiteboard*/
-  key_t wb_key = ipc_key_generation("ipc", SHM_WB_CODE, "whiteboard key generation error");
+  key_t wb_key = ipc_key_generation("ipc", WB_CODE, "whiteboard key generation error");
 
   /*whiteboard creation and internal id reception*/
   int wb_id = shm_id_reception(wb_key, sizeof(whiteboard), IPC_CREAT | 0666, "whiteboard creation error");
@@ -80,7 +29,7 @@ whiteboard* init_wb(){
   printf("whiteboard attached successfully\n");
 
   /*whiteboard initialization*/
-  strcpy(wb->content, ""); //le whiteboard est vide
+  init_whiteboard(wb);
   printf("whiteboard initialized successfully\n");
 
   return wb;
@@ -136,55 +85,55 @@ int init_sem(){
 }
 
 void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem){
-  wb = init_wb(); //creation and initialization of whiteboard
+  wb = init_wb_shm(); //creation and initialization of whiteboard
   shm_clients = init_shm_clients(); //creation and initialization of shared segment memory for number of connected clients
   *sem_id = init_sem(); //creation of array of semaphores
   *unisem = init_sem_union(*sem_id); //initialization of array of sempahores buffer
 }
 
-void increment_connected_clients(int *shm_clients, int sem_id){
-  printf("Connected clients (before) : %d\n", *shm_clients);
-  struct sembuf op_buf;
-
-  /*initialization of the semaphore operation buffer for the wait semaphore operation*/
-  init_sem_op_buf(&op_buf, 3, -1, SEM_UNDO);
-
-  /*acquiring of the mutex on shared segment memory for connected clients*/
-  sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
-
-  /*incrementing the number of clients*/
-  *shm_clients = *shm_clients + 1;
-
-  /*initialization of the semaphore operation buffer for the signal semaphore operation*/
-  init_sem_op_buf(&op_buf, 3, 1, SEM_UNDO);
-
-  /*liberation of the mutex on shared segment memory for connected clients*/
-  sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
-
-  printf("Connected clients (after) : %d\n", *shm_clients);
-}
-
-void decrement_connected_clients(int *shm_clients, int sem_id){
-  printf("Connected clients (before) : %d\n", *shm_clients);
-  struct sembuf op_buf;
-
-  /*initialization of the semaphore operation buffer for the wait semaphore operation*/
-  init_sem_op_buf(&op_buf, 3, -1, SEM_UNDO);
-
-  /*acquiring of the mutex on shared segment memory for connected clients*/
-  sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
-
-  /*decrementing the number of clients*/
-  *shm_clients = *shm_clients - 1;
-
-  /*initialization of the semaphore operation buffer for the signal semaphore operation*/
-  init_sem_op_buf(&op_buf, 3, 1, SEM_UNDO);
-
-  /*liberation of the mutex on shared segment memory for connected clients*/
-  sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
-
-  printf("Connected clients (after) : %d\n", *shm_clients);
-}
+// void increment_connected_clients(int *shm_clients, int sem_id){
+//   printf("Connected clients (before) : %d\n", *shm_clients);
+//   struct sembuf op_buf;
+//
+//   /*initialization of the semaphore operation buffer for the wait semaphore operation*/
+//   init_sem_op_buf(&op_buf, 3, -1, SEM_UNDO);
+//
+//   /*acquiring of the mutex on shared segment memory for connected clients*/
+//   sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
+//
+//   /*incrementing the number of clients*/
+//   *shm_clients = *shm_clients + 1;
+//
+//   /*initialization of the semaphore operation buffer for the signal semaphore operation*/
+//   init_sem_op_buf(&op_buf, 3, 1, SEM_UNDO);
+//
+//   /*liberation of the mutex on shared segment memory for connected clients*/
+//   sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
+//
+//   printf("Connected clients (after) : %d\n", *shm_clients);
+// }
+//
+// void decrement_connected_clients(int *shm_clients, int sem_id){
+//   printf("Connected clients (before) : %d\n", *shm_clients);
+//   struct sembuf op_buf;
+//
+//   /*initialization of the semaphore operation buffer for the wait semaphore operation*/
+//   init_sem_op_buf(&op_buf, 3, -1, SEM_UNDO);
+//
+//   /*acquiring of the mutex on shared segment memory for connected clients*/
+//   sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
+//
+//   /*decrementing the number of clients*/
+//   *shm_clients = *shm_clients - 1;
+//
+//   /*initialization of the semaphore operation buffer for the signal semaphore operation*/
+//   init_sem_op_buf(&op_buf, 3, 1, SEM_UNDO);
+//
+//   /*liberation of the mutex on shared segment memory for connected clients*/
+//   sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
+//
+//   printf("Connected clients (after) : %d\n", *shm_clients);
+// }
 
 int main(int argc, char* argv[]){
 
@@ -218,7 +167,7 @@ int main(int argc, char* argv[]){
     int client_socket_fd = accept_socket(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size, "server accepting connections error");
     if ((pid = fork()) == 0){ //server child process for client handling
       close_socket(server_socket_fd, "server socket closing error");
-      increment_connected_clients(shm_clients, sem_id);
+      // increment_connected_clients(shm_clients, sem_id);
       char quit_msg[2] = ""; //":q"
 
       /*initializing server message and pseudo*/

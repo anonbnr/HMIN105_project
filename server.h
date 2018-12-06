@@ -1,19 +1,26 @@
 #ifndef _SERVER_H
 #define _SERVER_H
-#include <sys/types.h>
-#include <netdb.h>
-#include "utility.h"
+#include "utility/stock.h"
+#include "utility/utility.h"
 
-#define SHM_WB_CODE 66
+/*CONSTANTS*/
+#define WB_CODE 66
 #define SHM_CLIENTS_CODE 99
 #define SEM_CODE 33
 #define PORT_NUMBER 31000
 #define BACKLOG 10
+#define MAX_STOCK 10000
 
-/*STRUCTURE*/
+/*STRUCTURES*/
 //whiteboard structure
+/**
+  a whiteboard is an array of MAX_STOCK stocks
+  everytime an array is added/removed, nb_stocks is incremented/decremented
+  before adding a stock, nb_stocks is always checked to see if it's <= MAX_STOCK
+*/
 typedef struct whiteboard {
-  char content[WHITEBOARD_SIZE];
+  stock content[MAX_STOCK];
+  int nb_stocks;
 } whiteboard;
 
 //union structure for semaphores
@@ -25,20 +32,16 @@ union semun {
 };
 
 /*FUNCTIONS*/
-//ipc initialization functions
-key_t ipc_key_generation(const char* file, int code, const char* error_msg);
-int shm_id_reception(key_t shm_key, size_t size, int permissions, const char* error_msg);
-void *shm_attachment(int shm_id, const void *shmaddr, int permissions, const char* error_msg);
-int sem_id_reception(key_t sem_key, size_t sems, int permissions, const char* error_msg);
-void init_sem_op_buf(struct sembuf* op, unsigned short sem_num, short sem_op, short sem_flg);
-void sem_operation(int sem_id, struct sembuf *sops, size_t nops, const char* error_msg);
-whiteboard* init_wb();
-int* init_shm_clients();
-int init_sem();
-union semun init_sem_union(int sem_id);
-void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem);
-void increment_connected_clients(int *shm_clients, int sem_id);
-void decrement_connected_clients(int *shm_clients, int sem_id);
+//whiteboard functions
+void init_whiteboard(whiteboard *wb); //initializes a whiteboard structure
 
+//ipc initialization functions
+whiteboard* init_wb_shm(); //initialization of the whiteboard shared segment that returns a pointer to the whiteboard afterwards
+int* init_shm_clients(); //initialization of the number of clients shared segment that returns a pointer to the shared segment afterwards
+int init_sem(); //creation of a SV semaphore array that returns the semaphore array ID afterwards
+union semun init_sem_union(int sem_id); //initialization of a SV semaphore array union buffer that returns the initialized buffer afterwards
+void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem); //initialization of all IPC objects required for the application
+// void increment_connected_clients(int *shm_clients, int sem_id);
+// void decrement_connected_clients(int *shm_clients, int sem_id);
 
 #endif //_SERVER_H

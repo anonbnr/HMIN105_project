@@ -11,8 +11,8 @@
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include "client.h"
-#include "socket_wrapper.h"
-#include "utility.h"
+#include "wrapper/socket_wrapper.h"
+#include "utility/utility.h"
 
 /*
 ****************************

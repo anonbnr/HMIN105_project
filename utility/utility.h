@@ -1,7 +1,6 @@
 #ifndef _UTILITY_H
 #define _UTILITY_H
 
-#define WHITEBOARD_SIZE 1000000
 #define MSG_SIZE 1024
 #define PSEUDO_SIZE 100
 

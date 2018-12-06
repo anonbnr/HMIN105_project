@@ -2,7 +2,7 @@ DESCRIPTION:
 ============
 - whiteboard :
   a. array of products' stocks (static with a maximum size)
-  b. number_of_stocks:
+  b. nb_stocks:
     square- increments/decrements upon adding/removing a stock
     square- is checked before adding a stock
 - stock :
@@ -52,7 +52,7 @@ BASIC FUNCTIONALITY ALGORITHMS:
 ===============================
 SERVER:
 =======
-//stock structure
+//stock structure (check)
 typdef struct stock{
   char name[MAX_PRODUCT_NAME];
   char producer[MAX_PRODUCER_NAME];
@@ -60,24 +60,24 @@ typdef struct stock{
   int quantity;
 } stock;
 
-//whiteboard structure
+//whiteboard structure (check)
 typedef struct whiteboard {
   stock content[MAX_STOCK * sizeof(stock)];
-  int number_of_stocks;
+  int nb_stocks;
 } whiteboard;
 
-void init_stock(stock, const char* producer, const char* product_name, quantity, price){
+void init_stock(stock, const char* producer, const char* product_name, quantity, price){ (check)
   stock.producer = producer; //use strcpy
   stock.name = product_name; //use strcpy
   stock.price = price;
   stock.quantity = quantity;
 }
 
-void empty_stock(stock){
+void empty_stock(stock){ (check)
   memset(stock, NULL, sizeof(stock));
 }
 
-char* stock_toString(stock){
+char* stock_toString(stock){ (check)
   int quantity_length = snprintf(NULL, 0, "%d", stock->quantity);
   int price_length = snprintf(NULL, 0, "lf", stock->price);
   size_t size = quantity_length + price_length + strlen(stock->producer) + strlen(stock->name) + 13;
@@ -88,7 +88,7 @@ char* stock_toString(stock){
 
 void init_whiteboard(wb){
   memset(wb.content, NULL, stock_size * sizeof(stock));
-  wb.number_of_stocks = 0;
+  wb.nb_stocks = 0;
 }
 
 void greeting_message(){
@@ -254,7 +254,7 @@ int validate_action(action, pseudo, args, return_msg){
   }
   else if(action == "display"){ //display
     //check for semaphores and wb shared segment
-    return_msg = wb.number_of_stocks; //make it more explicit
+    return_msg = wb.nb_stocks; //make it more explicit
     return 0; //index of first stock
   }
 }
