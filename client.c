@@ -189,13 +189,13 @@ int validate_action(char *action){
 /*
 input function
 */
-void input_action(){
+/*void input_action(){
   do {
     print("What do you want to do ?");
     fgets(action, size_of_action, stdin);
   } while(validate_action(action) != 0);
 }
-
+*/
 /*
 THREAD
 =======
@@ -217,9 +217,11 @@ void *receptionThread(void *par){
 		/*printf("Reception thread.\n");
 		sleep(2);*/
 
+		printf("while loop\n");
 		//receive message
 		recv_message(sockfd, &msg, sizeof(msg), 0, "Message reception error");
 
+		printf("message received\n");
 		/*
 		//cut the last character from the pseudo and the message, which is a \n
 		int sizepseudo = strlen(msg.pseudo);
@@ -312,4 +314,5 @@ int main(int argc, char* argv[]){
  	strcpy(msgpseudo.pseudo, pseudo);
  	send_message(sock, &msgpseudo, sizeof(msgpseudo), 0, "Message sending error");
  	
+ 	while(1);
 }
