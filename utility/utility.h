@@ -14,4 +14,11 @@ typedef struct message {
 /*FUNCTIONS*/
 char** split_string(char *str, char *delimiter, size_t* size); //split function that splits a string into an array based on a delimiter*/
 void substring(const char *str, char *sub, int p, int l); //returns sub, a substring of s of length l starting at position p
+/*split function that splits a string into an array based on a delimiter*/
+char** split_string(char *str, char *delimiter, size_t* size);
+/*test if a string is an integer*/
+int isStringAnInt(char *string, int argsize);
+/* test if a string is a decimal number*/
+int isStringADecimal(char *string, int argsize);
+
 #endif //_UTILITY_H

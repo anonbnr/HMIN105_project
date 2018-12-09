@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "utility.h"
 
 char** split_string(char *str, char *delimiter, size_t* size){
@@ -35,4 +36,27 @@ void substring(const char *str, char *sub, int p, int l){
     }
     sub[c] = '\0';
   }
+}
+int isStringAnInt(char *string, int argsize){
+    for(int i = 0; i < argsize; i++){
+      if(!isdigit(string[i])){
+        return -3;
+      }
+    }
+    return 1;
+}
+
+int isStringADecimal(char *string, int argsize){
+  int dotCounter = 0;
+  for(int i = 0; i < argsize; i++){
+    if(string[i] == '.')
+      dotCounter++;
+    else
+      if(!isdigit(string[i])){
+        return -3;
+      }
+  }
+  if(dotCounter>1)
+    return -3;
+  return 1;
 }

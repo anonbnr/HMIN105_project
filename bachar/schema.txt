@@ -112,7 +112,7 @@ lock(RW_mutex);
   critical section
 unlock(RW mutex);
 
-char* add(wb, pseudo, args, index){ //add product_name qty price
+char* add(wb, pseudo, args, index){ //add qty product_name price
   int quantity = (int) strol(args[1], NULL, 10);
   double price = (double) strtod(args[2], NULL);
   init_stock(&(wb->content[index]), pseudo, args[0], quantity, price);
@@ -296,6 +296,8 @@ CLIENT:
 NOTES:
 ======
 maximum accepted quantity = 5 digits (99999) (it affects the add return result (and other similar functions))
+
+DONE
 int validate_pseudo(pseudo){
   if contains(pseudo, numbers | special characters)
     return false;
@@ -303,6 +305,7 @@ int validate_pseudo(pseudo){
     return true;
 }
 
+DONE
 int validate_action(action){
   int valid = 0; //action valid by default
   String[] fields = split(action, " "); //function needs to be defined by us
@@ -314,6 +317,7 @@ int validate_action(action){
   }
   else return -1; //action name is invalid
 }
+
 
 void input_action(){
   do {
