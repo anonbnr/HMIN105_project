@@ -5,7 +5,10 @@
 
 /*FUNCTIONS*/
 void init_empty_stock(stock *st){
-  memset(st, 0, sizeof(stock));
+  strcpy(st->producer, "");
+  strcpy(st->name, "");
+  st->price = INIT_NULL_VALUE;
+  st->quantity = INIT_NULL_VALUE;
 }
 
 void init_stock(stock *st, const char* name, const char* producer, double price, int quantity){
@@ -20,7 +23,13 @@ void empty_stock(stock *st){
 }
 
 int is_null(stock *st){
-  return strlen(st->producer) == 0 && strlen(st->name) == 0 && st->price == 0 && st->quantity == 0;
+  printf("st->price = %lf\n", st->price);
+  printf("st->quantity = %d\n", st->quantity);
+  // printf("strlen(st->producer) == 0 ? %d\n", strlen(st->producer) == 0);
+  // printf("strlen(st->name) == 0 ? %d\n", strlen(st->name) == 0);
+  // printf("st->price == %d ? %d\n", INIT_NULL_VALUE, st->price == INIT_NULL_VALUE);
+  // printf("st->quantity == %d ? %d\n", INIT_NULL_VALUE, st->quantity == INIT_NULL_VALUE);
+  return (strlen(st->producer) == 0) && (strlen(st->name) == 0) && (st->price == INIT_NULL_VALUE) && (st->quantity == INIT_NULL_VALUE);
 }
 
 char* stock_toString(stock *st){

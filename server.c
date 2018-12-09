@@ -131,8 +131,11 @@ void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem
 
 //whiteboard functions
 void init_whiteboard(whiteboard *wb){
-  for (int i=0; i<MAX_STOCK; i++)
+  for (int i=0; i<MAX_STOCK; i++){
     init_empty_stock(&(wb->content[i]));
+    printf("wb->content[%d]->price = %lf\n", i, (wb->content[i]).price);
+    printf("wb->content[%d]->quantity = %d\n", i, (wb->content[i]).quantity);
+  }
   wb->nb_stocks = 0;
 }
 
@@ -141,14 +144,11 @@ char* display(whiteboard *wb){
   char* stock_output = NULL;
   for (int i=0; i<MAX_STOCK; i++){
     if (!is_null(&(wb->content[i]))){
-      printf("we're here (%d)\n", i);
       stock_output = stock_toString(&(wb->content[i]));
       size += strlen(stock_output);
       free(stock_output);
     }
   }
-
-  printf("we're here\n");
 
   if(size == 0)
     return "No products are available at the moment";
@@ -161,18 +161,21 @@ char* display(whiteboard *wb){
       free(stock_output);
     }
 
+  // printf("%s\n", result);
   return result;
 }
 
 int main(int argc, char* argv[]){
 
-  whiteboard* wb = NULL;
+  whiteboard *wb = malloc(sizeof(whiteboard));
   int *shm_clients = malloc(sizeof(int));
   int sem_id;
   union semun unisem;
 
   /*creation and initialization of IPC objects used in the application*/
   init_IPC(wb, shm_clients, &sem_id, &unisem);
+  printf("wb->content[%d]->price = %lf\n", 1, (wb->content[1]).price);
+  printf("wb->content[%d]->quantity = %d\n", 1, (wb->content[1]).quantity);
   pid_t ppid = getpid(), pid;
   printf("Server Parent Process : %d\n", ppid);
 
@@ -250,6 +253,7 @@ int main(int argc, char* argv[]){
     }
   }
 
+  free(wb);
   free(shm_clients);
 
   return EXIT_SUCCESS;
