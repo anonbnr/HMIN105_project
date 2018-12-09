@@ -136,7 +136,7 @@ void init_whiteboard(whiteboard *wb){
   wb->nb_stocks = 0;
 }
 
-char* whiteboard_content(whiteboard *wb){
+char* get_whiteboard_content(whiteboard *wb){
   size_t size = 0;
   char* stock_output = NULL;
   for (int i=0; i<MAX_STOCK; i++){
@@ -158,8 +158,186 @@ char* whiteboard_content(whiteboard *wb){
       free(stock_output);
     }
 
-  // printf("%s\n", result);
   return result;
+}
+
+void send_controlled_content(int client_socket_fd, const char* output, message *msg){
+  size_t output_length = strlen(output);
+  if(output_length <= MSG_SIZE){
+    strcpy(msg->text, output);
+    send_message(client_socket_fd, msg, sizeof(*msg), 0, "Message sending error");
+  }
+  else{
+    size_t remaining_chars = strlen(output);
+    int start = 0;
+    while(remaining_chars > MSG_SIZE){
+      substring(output, msg->text, start, MSG_SIZE);
+      send_message(client_socket_fd, msg, sizeof(*msg), 0, "Message sending error");
+      remaining_chars -= MSG_SIZE;
+      start += MSG_SIZE;
+    }
+
+    if(remaining_chars != 0){
+      substring(output, msg->text, start, remaining_chars);
+      send_message(client_socket_fd, msg, sizeof(*msg), 0, "Message sending error");
+    }
+  }
+}
+
+void send_greeting_message(int client_socket_fd, whiteboard *wb, const char* server_pseudo, const char* client_pseudo){
+  message msg;
+  strcpy(msg.pseudo, server_pseudo);
+
+  size_t size = snprintf(NULL, 0, "Hello \"%s\" and welcome to the open-market\n", client_pseudo);
+  char *wb_content = get_whiteboard_content(wb);
+  size += snprintf(NULL, 0, "Market Status:\n=============\n%s\n", wb_content);
+  size += snprintf(NULL, 0, "\nuse the \"help\" command for a list of possible actions\n\n%s ", ACTION_INPUT_SYMBOL);
+  size++; //adding space for '\0'
+
+  char *wb_content_output = malloc(size * sizeof(char));
+  sprintf(wb_content_output, "Hello \"%s\" and welcome to the open-market\nMarket Status:\n=============\n%s\nuse the \"help\" command for a list of possible actions\n\n%s ", client_pseudo, wb_content, ACTION_INPUT_SYMBOL);
+
+  send_controlled_content(client_socket_fd, wb_content_output, &msg);
+  free(wb_content);
+  free(wb_content_output);
+}
+
+//add qty product_name price
+char* add(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+  int quantity = (int) strtol(args[0], NULL, 10);
+  double price = (double) strtod(args[2], NULL);
+
+  init_stock(&(wb->content[index]), args[1], client_pseudo, price, quantity);
+
+  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + strlen(args[2]) + 37;
+  char *return_msg = malloc(size * sizeof(char));
+  sprintf(return_msg, "\"%s\" added a stock of %s \"%s\" for %s/piece.", client_pseudo, args[0], args[1], args[2]);
+  return return_msg;
+}
+
+//addTo product_name qty
+char* addTo(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+  int quantity = (int) strtol(args[1], NULL, 10);
+
+  (wb->content[index]).quantity += quantity;
+
+  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + 25;
+  char *return_msg = malloc(size * sizeof(char));
+  sprintf(return_msg, "\"%s\" added %s to the \"%s\" stock.", client_pseudo, args[1], args[0]);
+  return return_msg;
+}
+
+//removeFrom product_name qty
+char* removeFrom(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+  int quantity = (int) strtol(args[1], NULL, 10);
+
+  (wb->content[index]).quantity -= quantity;
+
+  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + 30;
+  char *return_msg = malloc(size * sizeof(char));
+  sprintf(return_msg, "\"%s\" removed %s from the \"%s\" stock.", client_pseudo, args[1], args[0]);
+  return return_msg;
+}
+
+//modifyPrice product_name new_price
+char* modifyPrice(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+  double new_price = strtod(args[1], NULL);
+  double old_price = (wb->content[index]).price;
+  int old_price_size = snprintf(NULL, 0, "%lf", old_price);
+
+  (wb->content[index]).price = new_price;
+
+  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + old_price_size + 49;
+  char *return_msg = malloc(size * sizeof(char));
+  sprintf(return_msg, "\"%s\" changed the price of \"%s\" from %lf/piece to %lf/piece.", client_pseudo, args[0], old_price, new_price);
+  return return_msg;
+}
+
+//removeStock product_name
+char* removeStock(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+  empty_stock(&(wb->content[index]));
+
+  size_t size = strlen(client_pseudo) + strlen(args[0]) + 26;
+  char *return_msg = malloc(size * sizeof(char));
+  sprintf(return_msg, "\"%s\" removed their \"%s\" stock.", client_pseudo, args[0]);
+  return return_msg;
+}
+
+//buy qty product_name from producer_pseudo
+char *buy(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+  int quantity = (int) strtol(args[0], NULL, 10);
+  double price = (wb->content[index]).price;
+
+  (wb->content[index]).quantity -= quantity;
+
+  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + strlen(args[3]) + 52;
+  char *return_msg = malloc(size * sizeof(char));
+  sprintf(return_msg, "\"%s\" bought %d pieces from the \"%s\" stock of \"%s\" at %lf/piece.", client_pseudo, quantity, args[1], args[3], price);
+  return return_msg;
+}
+
+char* quit(whiteboard *wb, const char* client_pseudo) {
+  for (int i=0; i<MAX_STOCK; i++)
+    if(!is_null(&(wb->content[i])))
+      if(!strcmp((wb->content[i]).producer, client_pseudo))
+        empty_stock(&(wb->content[i]));
+  size_t size = strlen(client_pseudo) + 59;
+  char *return_msg = malloc(size * sizeof(char));
+  sprintf(return_msg, "\"%s\" just quit the market and all of his stocks were removed", client_pseudo);
+  return return_msg;
+}
+
+//add qty product_name price
+int validate_add(whiteboard *wb, const char* client_pseudo, const char** args){
+
+  return -1; //error
+}
+
+int validate_action(whiteboard *wb, char* action, const char* client_pseudo, const char** args, char* return_msg){
+  //validate the values by accessing the whiteboard and verifying them accordingly
+  if(!strcmp(action, "add")){
+    //semaphore array needs to be handled here
+    //call validate_add
+  }
+
+  else if(!strcmp(action, "addTo")){
+    //semaphore array needs to be handled here
+    //call validate_addTo
+  }
+
+  else if(!strcmp(action, "removeFrom")){
+    //semaphore array needs to be handled here
+    //call validate_removeFrom
+  }
+
+  else if(!strcmp(action, "modifyPrice")){
+    //semaphore array needs to be handled here
+    //call validate_modifyPrice
+  }
+
+  else if(!strcmp(action, "removeStock")){
+    //semaphore array needs to be handled here
+    //call validate_removeStock
+  }
+
+  else if(!strcmp(action, "buy")){
+    //semaphore array needs to be handled here
+    //call validate_buy
+  }
+
+  else if(!strcmp(action, "quit")){
+    //semaphore array needs to be handled here
+    strcpy(return_msg, quit(wb, client_pseudo));
+    return 0; //success code
+  }
+
+  else if(!strcmp(action, "display")){
+    //semaphore array needs to be handled here
+    sprintf(return_msg, "%d stocks:\n", wb->nb_stocks);
+    return 0; //success code
+  }
+
+  return -1; //error
 }
 
 int main(int argc, char* argv[]){
@@ -171,8 +349,6 @@ int main(int argc, char* argv[]){
 
   /*creation and initialization of IPC objects used in the application*/
   init_IPC(&wb, &shm_clients, &sem_id, &unisem);
-  // printf("wb->content[%d]->price (main) = %lf\n", 1, (wb->content[1]).price);
-  // printf("wb->content[%d]->quantity (main) = %d\n", 1, (wb->content[1]).quantity);
   pid_t ppid = getpid(), pid;
   printf("Server Parent Process : %d\n", ppid);
 
@@ -202,23 +378,34 @@ int main(int argc, char* argv[]){
       /*initializing server message and pseudo*/
       message server_msg;
       strcpy(server_msg.pseudo, "Server");
-      strcpy(server_msg.text, "Greetings! Please enter your pseudo (maximum of 100 characters)");
-      printf("%s\n", whiteboard_content(wb));
+      strcpy(server_msg.text, "Greetings! Please enter your pseudo (maximum of 100 characters, no spaces) : ");
 
+      /*requesting pseudo from client*/
       send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
 
-      /*receiving client pseudo message*/
+      /*receiving pseudo message from client*/
       message client_msg;
       recv_message(client_socket_fd, &client_msg, sizeof(client_msg), 0, "Message reception error");
 
+      /*sending greeting message*/
+      send_greeting_message(client_socket_fd, wb, server_msg.pseudo, client_msg.pseudo);
+
       do {
-        //wait for messages sent by client
+        //wait for actions sent by client
         recv_message(client_socket_fd, &client_msg, sizeof(client_msg), 0, "Message reception error");
+
+        /**TODO
+         * actions must be validated here (values only)
+         * if an action is validated we execute it
+         * else we send an error message to the client
+        */
+
 
         //if client wants to quit the chatroom
         if(strcmp(quit_msg, client_msg.text) == 0){
           strcpy(server_msg.text, "Bye Bye...");
           send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
+          //TODO remove all stocks related to client in the whiteboard
           close_socket(client_socket_fd, "client socket closing error");
           exit(EXIT_SUCCESS);
         }

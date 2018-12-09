@@ -11,9 +11,7 @@ typedef struct message {
   char pseudo[PSEUDO_SIZE];
 } message;
 
-
 /*FUNCTIONS*/
-
-/*split function that splits a string into an array based on a delimiter*/
-char** split_string(char *str, char *delimiter, size_t* size);
+char** split_string(char *str, char *delimiter, size_t* size); //split function that splits a string into an array based on a delimiter*/
+void substring(const char *str, char *sub, int p, int l); //returns sub, a substring of s of length l starting at position p
 #endif //_UTILITY_H

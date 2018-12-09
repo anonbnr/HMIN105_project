@@ -91,14 +91,14 @@ void init_whiteboard(wb){ (check)
   wb.nb_stocks = 0;
 }
 
-void greeting_message(){
+void greeting_message(){ (check)
   print("Hello pseudo and welcome the open-market");
   status_message();
   print("input \"help\" for a list of possible actions\n");
   print("You can now perform actions in the market\n");
 }
 
-void status_message(){
+void status_message(){ (check)
   print("Stocks:\n=========\n");
   for every stock in market:
     display stock information;
@@ -155,7 +155,7 @@ void quit(wb, pseudo){ //quit
         empty_stock(&(wb->content[i]));
 }
 
-char* display(wb){ //display
+char* display(wb){ //display (check)
   size_t size = 0;
   for (int i=0; i<WHITEBOARD_SIZE; i++)
     if(wb->content[i] != NULL)
@@ -266,7 +266,7 @@ String execute_action(action, pseudo, wb){
   char* args[] = malloc((length-1) * sizeof(char*)); //dynamic allocation
   validation_result = validate_action(action_array[0], pseudo, wb, &args, notification_update);
   if(validation_result >= 0){
-    if(action_array[0] == "add"){ add qty product_name price
+    if(action_array[0] == "add"){ //add qty product_name price
       strcpy(args[0], action_array[1]); //adding quantity argument
       strcpy(args[1], action_array[2]); //adding product_name argument
       strcpy(args[2], action_array[3]); //adding price argument

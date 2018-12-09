@@ -3,8 +3,9 @@
 
 /*CONSTANTS*/
 #define MAX_PRODUCT_NAME 1024
-#define MAX_PRODUCER_NAME 1024
 #define INIT_NULL_VALUE -1
+
+#include "utility.h"
 
 /*STOCK STRUCTURE*/
 /**
@@ -13,7 +14,7 @@
 */
 typedef struct stock {
   char name[MAX_PRODUCT_NAME];
-  char producer[MAX_PRODUCER_NAME];
+  char producer[PSEUDO_SIZE];
   double price;
   int quantity;
 } stock;
