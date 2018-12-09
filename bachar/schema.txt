@@ -86,7 +86,7 @@ char* stock_toString(stock){ (check)
   return result;
 }
 
-void init_whiteboard(wb){
+void init_whiteboard(wb){ (check)
   memset(wb.content, NULL, stock_size * sizeof(stock));
   wb.nb_stocks = 0;
 }

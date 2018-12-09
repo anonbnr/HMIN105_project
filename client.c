@@ -162,14 +162,12 @@ int main(int argc, char* argv[]){
 			*pos = '\0';
 	printf("pseudo after: %s\n", pseudo);
  	//test if it was read right
- 	//printf("Hello %s, enjoy chatting and remember to remaind civil.\n", pseudo);
+ 	printf("Hello %s, enjoy chatting and remember to remaind civil.\n", pseudo);
 
  	message msgpseudo;
  	strcpy(msgpseudo.pseudo, pseudo);
  	send_message(sock, &msgpseudo, sizeof(msgpseudo), 0, "Message sending error");
 
- 	while(1){
-
- 	}
+	while(1);
 
 }

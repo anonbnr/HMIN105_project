@@ -19,6 +19,10 @@ void empty_stock(stock *st){
   init_empty_stock(st);
 }
 
+int is_null(stock *st){
+  return strlen(st->producer) == 0 && strlen(st->name) == 0 && st->price == 0 && st->quantity == 0;
+}
+
 char* stock_toString(stock *st){
   int price_length = snprintf(NULL, 0, "%f", st->price);
   int quantity_length = snprintf(NULL, 0, "%d", st->quantity);

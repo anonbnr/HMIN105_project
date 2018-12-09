@@ -6,9 +6,9 @@ UTILITY=utility/
 
 all: server client
 
-client: client.o client.h $(WRAPPER)socket_wrapper.o $(UTILITY)utility.h
+client: client.o client.h $(WRAPPER)socket_wrapper.o $(UTILITY)utility.o
 	@echo creating client executable
-	$(CC) -o $@ client.o $(WRAPPER)socket_wrapper.o $(THREAD)
+	$(CC) -o $@ client.o $(WRAPPER)socket_wrapper.o $(UTILITY)utility.o $(THREAD)
 	@echo created executable successfully
 
 client.o: client.c client.h $(UTILITY)utility.h $(WRAPPER)socket_wrapper.h
@@ -17,15 +17,22 @@ client.o: client.c client.h $(UTILITY)utility.h $(WRAPPER)socket_wrapper.h
 	@echo finished compiling
 	@echo
 
-server: server.o server.h $(WRAPPER)ipc_wrapper.o $(WRAPPER)socket_wrapper.o $(UTILITY)stock.o $(UTILITY)utility.h
+server: server.o server.h $(WRAPPER)ipc_wrapper.o $(WRAPPER)socket_wrapper.o $(UTILITY)stock.o $(UTILITY)utility.o
 	@echo creating server executable
-	$(CC) -o $@ server.o $(WRAPPER)ipc_wrapper.o $(WRAPPER)socket_wrapper.o $(UTILITY)stock.o $(THREAD)
+	$(CC) -o $@ server.o $(WRAPPER)ipc_wrapper.o $(WRAPPER)socket_wrapper.o $(UTILITY)stock.o $(UTILITY)utility.o $(THREAD)
 	@echo created executable successfully
 	@echo
 
 server.o: server.c server.h $(WRAPPER)socket_wrapper.h $(WRAPPER)ipc_wrapper.h $(UTILITY)utility.h $(UTILITY)stock.h
 	@echo compiling server program
 	$(CC) $(CFLAGS) server.c
+	@echo finished compiling
+	@echo
+
+utility.o: $(UTILITY)utility.c $(UTILITY)utility.h
+	@echo compiling utility program
+	$(CC) $(CFLAGS) $(UTILITY)utility.c
+	@mv utility.o $(UTILITY)
 	@echo finished compiling
 	@echo
 

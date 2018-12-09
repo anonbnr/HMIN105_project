@@ -21,6 +21,7 @@ typedef struct stock {
 void init_empty_stock(stock *st); //initializes a stock as an empty stock
 void init_stock(stock *st, const char* name, const char* producer, double price, int quantity); //initializes a stock with the provided fields' values
 void empty_stock(stock *st); //empties the contents of a stock (equivalent to initializing a stock as an empty stock)
+int is_null(stock *st); //checks if the stock structure is null
 char* stock_toString(stock *st); //toString to display the contents of a stock
 
 #endif //_STOCK_H

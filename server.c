@@ -9,12 +9,6 @@
 #include "wrapper/socket_wrapper.h"
 
 /*FUNCTIONS*/
-//whiteboard functions
-void init_whiteboard(whiteboard *wb){
-  memset(wb->content, 0, MAX_STOCK * sizeof(stock));
-  wb->nb_stocks = 0;
-}
-
 //ipc initialization functions
 whiteboard* init_wb_shm(){
   /*key generation for whiteboard*/
@@ -135,6 +129,41 @@ void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem
 //   printf("Connected clients (after) : %d\n", *shm_clients);
 // }
 
+//whiteboard functions
+void init_whiteboard(whiteboard *wb){
+  for (int i=0; i<MAX_STOCK; i++)
+    init_empty_stock(&(wb->content[i]));
+  wb->nb_stocks = 0;
+}
+
+char* display(whiteboard *wb){
+  size_t size = 0;
+  char* stock_output = NULL;
+  for (int i=0; i<MAX_STOCK; i++){
+    if (!is_null(&(wb->content[i]))){
+      printf("we're here (%d)\n", i);
+      stock_output = stock_toString(&(wb->content[i]));
+      size += strlen(stock_output);
+      free(stock_output);
+    }
+  }
+
+  printf("we're here\n");
+
+  if(size == 0)
+    return "No products are available at the moment";
+
+  char *result = malloc(size * sizeof(char));
+  for (int i=0; i<MAX_STOCK; i++)
+    if (!is_null(&(wb->content[i]))){
+      stock_output = stock_toString(&(wb->content[i]));
+      strcat(result, stock_output);
+      free(stock_output);
+    }
+
+  return result;
+}
+
 int main(int argc, char* argv[]){
 
   whiteboard* wb = NULL;
@@ -174,6 +203,7 @@ int main(int argc, char* argv[]){
       message server_msg;
       strcpy(server_msg.pseudo, "Server");
       strcpy(server_msg.text, "Greetings! Please enter your pseudo (maximum of 100 characters)");
+      display(wb);
 
       send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
 
