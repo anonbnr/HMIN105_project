@@ -37,12 +37,12 @@ whiteboard* init_wb_shm(); //initialization of the whiteboard shared segment tha
 int* init_shm_clients(); //initialization of the number of clients shared segment that returns a pointer to the shared segment afterwards
 int init_sem(); //creation of a SV semaphore array that returns the semaphore array ID afterwards
 union semun init_sem_union(int sem_id); //initialization of a SV semaphore array union buffer that returns the initialized buffer afterwards
-void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem); //initialization of all IPC objects required for the application
+void init_IPC(whiteboard **wb, int **shm_clients, int *sem_id, union semun *unisem); //initialization of all IPC objects required for the application
 // void increment_connected_clients(int *shm_clients, int sem_id);
 // void decrement_connected_clients(int *shm_clients, int sem_id);
 
 //whiteboard functions
 void init_whiteboard(whiteboard *wb); //initializes a whiteboard structure
-char* display(whiteboard *wb);
+char* whiteboard_content(whiteboard *wb);
 
 #endif //_SERVER_H

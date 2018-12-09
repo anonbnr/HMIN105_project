@@ -23,8 +23,6 @@ void empty_stock(stock *st){
 }
 
 int is_null(stock *st){
-  printf("st->price = %lf\n", st->price);
-  printf("st->quantity = %d\n", st->quantity);
   // printf("strlen(st->producer) == 0 ? %d\n", strlen(st->producer) == 0);
   // printf("strlen(st->name) == 0 ? %d\n", strlen(st->name) == 0);
   // printf("st->price == %d ? %d\n", INIT_NULL_VALUE, st->price == INIT_NULL_VALUE);

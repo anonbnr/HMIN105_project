@@ -78,9 +78,9 @@ int init_sem(){
   return sem_id;
 }
 
-void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem){
-  wb = init_wb_shm(); //creation and initialization of whiteboard
-  shm_clients = init_shm_clients(); //creation and initialization of shared segment memory for number of connected clients
+void init_IPC(whiteboard **wb, int **shm_clients, int *sem_id, union semun *unisem){
+  *wb = init_wb_shm(); //creation and initialization of whiteboard
+  *shm_clients = init_shm_clients(); //creation and initialization of shared segment memory for number of connected clients
   *sem_id = init_sem(); //creation of array of semaphores
   *unisem = init_sem_union(*sem_id); //initialization of array of sempahores buffer
 }
@@ -131,15 +131,12 @@ void init_IPC(whiteboard *wb, int *shm_clients, int *sem_id, union semun *unisem
 
 //whiteboard functions
 void init_whiteboard(whiteboard *wb){
-  for (int i=0; i<MAX_STOCK; i++){
+  for (int i=0; i<MAX_STOCK; i++)
     init_empty_stock(&(wb->content[i]));
-    printf("wb->content[%d]->price = %lf\n", i, (wb->content[i]).price);
-    printf("wb->content[%d]->quantity = %d\n", i, (wb->content[i]).quantity);
-  }
   wb->nb_stocks = 0;
 }
 
-char* display(whiteboard *wb){
+char* whiteboard_content(whiteboard *wb){
   size_t size = 0;
   char* stock_output = NULL;
   for (int i=0; i<MAX_STOCK; i++){
@@ -173,9 +170,9 @@ int main(int argc, char* argv[]){
   union semun unisem;
 
   /*creation and initialization of IPC objects used in the application*/
-  init_IPC(wb, shm_clients, &sem_id, &unisem);
-  printf("wb->content[%d]->price = %lf\n", 1, (wb->content[1]).price);
-  printf("wb->content[%d]->quantity = %d\n", 1, (wb->content[1]).quantity);
+  init_IPC(&wb, &shm_clients, &sem_id, &unisem);
+  // printf("wb->content[%d]->price (main) = %lf\n", 1, (wb->content[1]).price);
+  // printf("wb->content[%d]->quantity (main) = %d\n", 1, (wb->content[1]).quantity);
   pid_t ppid = getpid(), pid;
   printf("Server Parent Process : %d\n", ppid);
 
@@ -206,7 +203,7 @@ int main(int argc, char* argv[]){
       message server_msg;
       strcpy(server_msg.pseudo, "Server");
       strcpy(server_msg.text, "Greetings! Please enter your pseudo (maximum of 100 characters)");
-      display(wb);
+      printf("%s\n", whiteboard_content(wb));
 
       send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
 
