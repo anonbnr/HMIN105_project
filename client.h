@@ -14,5 +14,7 @@ typedef struct thread_params {
 
 /*FUNCTIONS*/
 int validate_pseudo(char* pseudo);
-
+void init_action();
+int validate_action(char *action);
+int input_action();
 #endif //_CLIENT_H

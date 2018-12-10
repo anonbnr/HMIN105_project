@@ -113,17 +113,19 @@ int validate_action(char *action){
 	char** fields = split_string(action, delimiter, &size);
 	int action_exists = 0;
 
-	for(int i = 0; i < size; i++)
+	//	for(int i = 0; i < size; i++)
 	//check if the action (first element of the array) is valid
 	for(int i = 0; i < ACTIONS_NUMBER; i++){
-		if(!strcmp(action_list[i], action)){
+		printf("action_list[%d]: %s \n", i, action_list[i]);
+
+		if(!strcmp(action_list[i], fields[0])){
 			//we found a valid action
 			action_exists = 1;
 			break;
 		}
 	}
 	if(action_exists == 0){
-		printf("This action is not valid. Check the \"help\" command\n");
+		printf("Error: This action is not valid. Check the \"help\" command\n");
 		return -1;
 
 	}
@@ -155,7 +157,7 @@ int validate_action(char *action){
 
 	//incorrect number of arguments
 	if(size != number_args+1){
-		printf("Wrong argument number. Use \"help\" for reference\n");
+		printf("Error: Wrong argument number. Use \"help\" for reference\n");
 		return -2;
 	}
 
@@ -167,7 +169,7 @@ int validate_action(char *action){
 		//arg 2 is an int
 		int arg2len = strlen(fields[2]);
 		if(isStringAnInt(fields[2], arg2len)==-3){
-			printf("Your second argument must be an integer\n");
+			printf("Error: Your second argument must be an integer\n");
 			return -3;
 		}
 
@@ -176,27 +178,37 @@ int validate_action(char *action){
 		if(!strcmp(action, "modifyPrice")){
 			int arg2len = strlen(fields[2]);
 			if(isStringADecimal(fields[2], arg2len)==-3){
+				printf("Error: Your second argument must be a number\n");
 				return -3;
 			}
 		}
 		else
 			if(!strcmp(action, "add")){
 				if(isStringAnInt(fields[1], strlen(fields[1]))==-3){
+					printf("Error: Your first argument must be a integer\n");
 					return -3;
 				}
 				if(isStringADecimal(fields[3], strlen(fields[3])) == -3){
+					printf("Error: Your third argument must be a integer\n");
 					return -3;
 				}
 			}
 			else
 				if(!strcmp(action, "buy")){
 					if(isStringAnInt(fields[1], strlen(fields[1]))==-3){
+					printf("Error: Your first argument must be a integer\n");
 					return -3;
 					}
 
-					if(strcmp(fields[3], "from") != 0)
+					if(strcmp(fields[3], "from") != 0){
+						printf("Error: Your third argument must be a integer\n");
 						return -3;
+					}
+
 				}
+	if(!strcmp(action, "help")){
+			printf("helptext\n");
+	}	
 	return 1;
 }
 
@@ -209,17 +221,28 @@ Typically, the safest and easiest way to use fgets is to allocate a single, larg
 
 https://stackoverflow.com/questions/43813594/getting-input-with-fgets-in-a-loop
 */
-void input_action(){
-	char *action = malloc(MSG_SIZE * sizeof(char));
+int input_action(char *action, char *action_saved){
+	//char *action 
 	//printf("inside input action\n");
-  	//do{
-    	printf("What do you want to do ?\n");
-    	if(fgets(action, MSG_SIZE+1, stdin) != NULL){
-    	} //fgets adds a /n at the end so i have to adjust the size for it
-  	//}while(validate_action(action) != 1);
+    printf("What do you want to do ?\n");
+    if(fgets(action, MSG_SIZE+1, stdin) != NULL){
+    	//no error from reading
+    	//printf("Action string from begining of input_action: %s\n", action);
 
-    validate_action(action);
-}
+    	if(validate_action(action) == 1){
+    		//action is valid, send it to the server
+    		strcpy(action_saved, action);
+    		printf("Action saved from input %s\n", action_saved);
+			return 1;
+	    	}
+    }//fgets adds a /n at the end so i have to adjust the size for it
+    else{
+    	//error reading client text
+    	printf("Internal error [fgets]. Application will now close...\n Sorry for the inconvenience\n");
+    	exit(1);
+    }
+    return -1;
+}	
 
 /*
 THREAD
@@ -262,7 +285,7 @@ void *receptionThread(void *par){
 			*pos = '\0';
 		*/
 		//print message on screen
-		printf("%s: %s\n", msg.pseudo, msg.text);
+		printf("%s: %s\n",msg.pseudo, msg.text);
 		//empty message structure
 
 	}
@@ -320,9 +343,10 @@ int main(int argc, char* argv[]){
 	message server_msg;
  	recv_message(sock, &server_msg, sizeof(server_msg), 0, "Message reception error");
 
+ 	//print message on screen
+	printf("%s: %s\n",server_msg.pseudo, server_msg.text);
 
- 	//ADD A SECOND DO WHILE THAT SURROUNDS THIS ONE
- 	//AS LONG AS THE MESSAGE RECEIVED BY THE SERVER IS -1, KEEP REPEATING THIS SAME PROCESS
+ 	do{
  	do{
  		printf("Please enter your pseudo: \n");
  		//Get client's pseudo after the server asks for it
@@ -330,11 +354,20 @@ int main(int argc, char* argv[]){
  		//printf("pseudo before: %s", pseudo);
  	}while(validate_pseudo(pseudo) == -1);
  	
+ 	//send pseudo to server
  	message msgpseudo;
  	strcpy(msgpseudo.pseudo, pseudo);
  	send_message(sock, &msgpseudo, sizeof(msgpseudo), 0, "Message sending error");
  	
+ 	//receive validation message from server
  	recv_message(sock, &server_msg, sizeof(server_msg), 0, "Message reception error");
+
+ 	printf("%s: %s\n", server_msg.pseudo, server_msg.text);
+ 	//while it's a negative response,ask the user for another input
+ 	}while(!strcmp(server_msg.text, "-1"));
+ 	//print message on screen
+
+	//printf("%s: %s\n", server_msg.pseudo, server_msg.text);
 
  	//initialize parameter to be passed to the thread
  	thread_params *params = malloc(sizeof(thread_params));
@@ -345,10 +378,42 @@ int main(int argc, char* argv[]){
  		exit(6);
  	}
 
- 	
+ 	//initilize the action definition array
  	init_action();
- 	//receive messages
+
+
+ 	//send messages
  	while(1){
- 		input_action();
- 	}
+ 		int send = 0;
+ 		char* action = malloc(MSG_SIZE * sizeof(char));
+ 		char *action_saved = malloc(MSG_SIZE * sizeof(char));
+
+ 		printf("What do you want to do ?\n");
+    	if(fgets(action, MSG_SIZE+1, stdin) != NULL){
+	    	//no error from reading
+	    	printf("Action string from begining of input_action: %s\n", action);
+	    	strcpy(action_saved, action);
+
+	    	if(validate_action(action) == 1){
+	    		//action is valid, send it to the server
+	    		//printf("Action saved from inside the if in main %s\n", action_saved);
+
+	    		message action_msg;
+	    		strcpy(action_msg.pseudo, pseudo);
+	    		strcpy(action_msg.text, action_saved);
+
+	    		send_message(sock, &action_msg, sizeof(action_msg), 0, "Message sending error");
+
+	    		
+		    	}
+    	}//fgets adds a /n at the end so i have to adjust the size for it
+
+	    else{
+	    	//error reading client text
+	    	printf("Internal error [fgets]. Application will now close...\n Sorry for the inconvenience\n");
+	    	exit(1);
+	    }
+
+	    //printf("Action saved at the end of thw while loop: %s\n", action_saved);
+	 	}
 }
