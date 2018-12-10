@@ -184,6 +184,15 @@ void send_controlled_content(int client_socket_fd, const char* output, message *
   }
 }
 
+int validate_pseudo(whiteboard *wb, const char* client_pseudo){
+  //lock the whiteboard
+  for (int i=0; i<MAX_STOCK; i++)
+    if(!is_null(&(wb->content[i])))
+      if(!strcmp((wb->content[i]).producer, client_pseudo))
+        return -1;
+  return 0;
+}
+
 void send_greeting_message(int client_socket_fd, whiteboard *wb, const char* server_pseudo, const char* client_pseudo){
   message msg;
   strcpy(msg.pseudo, server_pseudo);
@@ -468,14 +477,19 @@ int main(int argc, char* argv[]){
       /*initializing server message and pseudo*/
       message server_msg;
       strcpy(server_msg.pseudo, "Server");
-      strcpy(server_msg.text, "Greetings! Welcome to the open-market platform.");
+      strcpy(server_msg.text, "Greetings and Welcome to the open-market platform!");
 
-      /*requesting pseudo from client*/
+      /*sending welcoming message*/
       send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
 
-      /*receiving pseudo message from client*/
+      /*receiving pseudo from client*/
       message client_msg;
       recv_message(client_socket_fd, &client_msg, sizeof(client_msg), 0, "Message reception error");
+      while(validate_pseudo(wb, client_msg.pseudo) == -1){
+        strcpy(server_msg.text, "-1");
+        send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
+        recv_message(client_socket_fd, &client_msg, sizeof(client_msg), 0, "Message reception error");
+      }
 
       /*sending greeting message*/
       send_greeting_message(client_socket_fd, wb, server_msg.pseudo, client_msg.pseudo);
