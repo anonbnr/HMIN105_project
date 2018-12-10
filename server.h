@@ -47,13 +47,14 @@ void init_whiteboard(whiteboard *wb); //initializes a whiteboard structure
 char* get_whiteboard_content(whiteboard *wb); //gets the contents of the whiteboard as a string
 void send_controlled_content(int client_socket_fd, const char* output, message *msg); //sends the contents of the whiteboard to the client
 void send_greeting_message(int client_socket_fd, whiteboard *wb, const char* server_pseudo, const char* client_pseudo); //sends the greeting message to the client upon after receiving his pseudo
-char* add(whiteboard *wb, const char* client_pseudo, const char** args, int index); //add product_name qty price
-char* addTo(whiteboard *wb, const char* client_pseudo, const char** args, int index); //addTo product_name qty
-char* removeFrom(whiteboard *wb, const char* client_pseudo, const char** args, int index); //removeFrom product_name qty
-char* modifyPrice(whiteboard *wb, const char* client_pseudo, const char** args, int index); //modifyPrice product_name new_price
-char* removeStock(whiteboard *wb, const char* client_pseudo, const char** args, int index); //removeStock product_name
-char* buy(whiteboard *wb, const char* client_pseudo, const char** args, int index); //buy qty product_name from producer_pseudo
+char* add(whiteboard *wb, const char* client_pseudo, char** args, int index); //add product_name qty price
+char* addTo(whiteboard *wb, const char* client_pseudo, char** args, int index); //addTo product_name qty
+char* removeFrom(whiteboard *wb, const char* client_pseudo, char** args, int index); //removeFrom product_name qty
+char* modifyPrice(whiteboard *wb, const char* client_pseudo, char** args, int index); //modifyPrice product_name new_price
+char* removeStock(whiteboard *wb, const char* client_pseudo, char** args, int index); //removeStock product_name
+char* buy(whiteboard *wb, const char* client_pseudo, char** args, int index); //buy qty product_name from producer_pseudo
 char* quit(whiteboard *wb, const char* client_pseudo);
-int validate_action(whiteboard *wb, char* action, const char* client_pseudo, const char** args, char* return_msg);
+int validate_action(whiteboard *wb, char* action, const char* client_pseudo, char** args, char* return_msg);
+char* execute_action(whiteboard *wb, char* action, char* client_pseudo);
 
 #endif //_SERVER_H

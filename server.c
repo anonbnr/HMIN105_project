@@ -203,7 +203,7 @@ void send_greeting_message(int client_socket_fd, whiteboard *wb, const char* ser
 }
 
 //add qty product_name price
-char* add(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+char* add(whiteboard *wb, const char* client_pseudo, char** args, int index){
   int quantity = (int) strtol(args[0], NULL, 10);
   double price = (double) strtod(args[2], NULL);
 
@@ -216,7 +216,7 @@ char* add(whiteboard *wb, const char* client_pseudo, const char** args, int inde
 }
 
 //addTo product_name qty
-char* addTo(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+char* addTo(whiteboard *wb, const char* client_pseudo, char** args, int index){
   int quantity = (int) strtol(args[1], NULL, 10);
 
   (wb->content[index]).quantity += quantity;
@@ -228,7 +228,7 @@ char* addTo(whiteboard *wb, const char* client_pseudo, const char** args, int in
 }
 
 //removeFrom product_name qty
-char* removeFrom(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+char* removeFrom(whiteboard *wb, const char* client_pseudo, char** args, int index){
   int quantity = (int) strtol(args[1], NULL, 10);
 
   (wb->content[index]).quantity -= quantity;
@@ -240,7 +240,7 @@ char* removeFrom(whiteboard *wb, const char* client_pseudo, const char** args, i
 }
 
 //modifyPrice product_name new_price
-char* modifyPrice(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+char* modifyPrice(whiteboard *wb, const char* client_pseudo, char** args, int index){
   double new_price = strtod(args[1], NULL);
   double old_price = (wb->content[index]).price;
   int old_price_size = snprintf(NULL, 0, "%lf", old_price);
@@ -254,7 +254,7 @@ char* modifyPrice(whiteboard *wb, const char* client_pseudo, const char** args, 
 }
 
 //removeStock product_name
-char* removeStock(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+char* removeStock(whiteboard *wb, const char* client_pseudo, char** args, int index){
   empty_stock(&(wb->content[index]));
 
   size_t size = strlen(client_pseudo) + strlen(args[0]) + 26;
@@ -264,15 +264,15 @@ char* removeStock(whiteboard *wb, const char* client_pseudo, const char** args, 
 }
 
 //buy qty product_name from producer_pseudo
-char *buy(whiteboard *wb, const char* client_pseudo, const char** args, int index){
+char *buy(whiteboard *wb, const char* client_pseudo, char** args, int index){
   int quantity = (int) strtol(args[0], NULL, 10);
   double price = (wb->content[index]).price;
 
   (wb->content[index]).quantity -= quantity;
 
-  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + strlen(args[3]) + 52;
+  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + strlen(args[2]) + 52;
   char *return_msg = malloc(size * sizeof(char));
-  sprintf(return_msg, "\"%s\" bought %d pieces from the \"%s\" stock of \"%s\" at %lf/piece.", client_pseudo, quantity, args[1], args[3], price);
+  sprintf(return_msg, "\"%s\" bought %d pieces from the \"%s\" stock of \"%s\" at %lf/piece.", client_pseudo, quantity, args[1], args[2], price);
   return return_msg;
 }
 
@@ -288,56 +288,146 @@ char* quit(whiteboard *wb, const char* client_pseudo) {
 }
 
 //add qty product_name price
-int validate_add(whiteboard *wb, const char* client_pseudo, const char** args){
+int validate_add(whiteboard *wb, const char* client_pseudo, char** args){
 
-  return -1; //error
+  return 0; //index
 }
 
-int validate_action(whiteboard *wb, char* action, const char* client_pseudo, const char** args, char* return_msg){
+int validate_addTo(whiteboard *wb, const char* client_pseudo, char** args){
+
+  return 0; //index
+}
+
+int validate_removeFrom(whiteboard *wb, const char* client_pseudo, char** args){
+
+  return 0; //index
+}
+
+int validate_modifyPrice(whiteboard *wb, const char* client_pseudo, char** args){
+
+  return 0; //index
+}
+
+int validate_removeStock(whiteboard *wb, const char* client_pseudo, char** args){
+
+  return 0; //index
+}
+
+int validate_buy(whiteboard *wb, const char* client_pseudo, char** args){
+
+  return 0; //index
+}
+
+int validate_action(whiteboard *wb, char* action, const char* client_pseudo, char** args, char* return_msg){
   //validate the values by accessing the whiteboard and verifying them accordingly
   if(!strcmp(action, "add")){
     //semaphore array needs to be handled here
     //call validate_add
+    return validate_add(wb, client_pseudo, args);
   }
 
   else if(!strcmp(action, "addTo")){
     //semaphore array needs to be handled here
     //call validate_addTo
+    return validate_addTo(wb, client_pseudo, args);
   }
 
   else if(!strcmp(action, "removeFrom")){
     //semaphore array needs to be handled here
     //call validate_removeFrom
+    return validate_removeFrom(wb, client_pseudo, args);
   }
 
   else if(!strcmp(action, "modifyPrice")){
     //semaphore array needs to be handled here
     //call validate_modifyPrice
+    return validate_modifyPrice(wb, client_pseudo, args);
   }
 
   else if(!strcmp(action, "removeStock")){
     //semaphore array needs to be handled here
     //call validate_removeStock
+    return validate_removeStock(wb, client_pseudo, args);
   }
 
   else if(!strcmp(action, "buy")){
     //semaphore array needs to be handled here
     //call validate_buy
+    return validate_buy(wb, client_pseudo, args);
   }
 
-  else if(!strcmp(action, "quit")){
+  else if(!strcmp(action, "display") || !strcmp(action, "quit")){
     //semaphore array needs to be handled here
-    strcpy(return_msg, quit(wb, client_pseudo));
-    return 0; //success code
-  }
-
-  else if(!strcmp(action, "display")){
-    //semaphore array needs to be handled here
-    sprintf(return_msg, "%d stocks:\n", wb->nb_stocks);
     return 0; //success code
   }
 
   return -1; //error
+}
+
+char* execute_action(whiteboard *wb, char* action, char* client_pseudo){
+  char* notification_update = "";
+  size_t action_size;
+  char** action_array = split_string(action, " ", &action_size);
+  char** args = malloc((action_size-1) * sizeof(char*));
+  int validation_result = validate_action(wb, action_array[0], client_pseudo, args, notification_update);
+
+  if(validation_result >= 0){
+    if(!strcmp(action_array[0], "add")){
+      strcpy(args[0], action_array[1]); //adding quantity argument
+      strcpy(args[1], action_array[2]); //adding product_name argument
+      strcpy(args[2], action_array[3]); //adding price argument
+      char* return_msg = add(wb, client_pseudo, args, validation_result);
+      notification_update = malloc(strlen(return_msg) * sizeof(char));
+      strcpy(notification_update, return_msg);
+      free(return_msg);
+    }
+    else if(!strcmp(action_array[0], "addTo")){
+      strcpy(args[0], action_array[1]); //adding product_name argument
+      strcpy(args[1], action_array[2]); //adding quantity argument
+      char* return_msg = addTo(wb, client_pseudo, args, validation_result);
+      notification_update = malloc(strlen(return_msg) * sizeof(char));
+      strcpy(notification_update, return_msg);
+      free(return_msg);
+    }
+    else if(!strcmp(action_array[0], "removeFrom")){
+      strcpy(args[0], action_array[1]); //adding product_name argument
+      strcpy(args[1], action_array[2]); //adding quantity argument
+      char* return_msg = removeFrom(wb, client_pseudo, args, validation_result);
+      notification_update = malloc(strlen(return_msg) * sizeof(char));
+      strcpy(notification_update, return_msg);
+      free(return_msg);
+    }
+    else if(!strcmp(action_array[0], "modifyPrice")){ //modifyPrice product_name new_price
+      strcpy(args[0], action_array[1]); //adding product_name argument
+      strcpy(args[1], action_array[2]); //adding new_price argument
+      char* return_msg = modifyPrice(wb, client_pseudo, args, validation_result);
+      notification_update = malloc(strlen(return_msg) * sizeof(char));
+      strcpy(notification_update, return_msg);
+      free(return_msg);
+    }
+    else if(!strcmp(action_array[0], "removeStock")){
+      strcpy(args[0], action_array[1]); //adding product_name argument
+      char* return_msg = removeStock(wb, client_pseudo, args, validation_result);
+      notification_update = malloc(strlen(return_msg) * sizeof(char));
+      strcpy(notification_update, return_msg);
+      free(return_msg);
+    }
+    else if(!strcmp(action_array[0], "buy")){ //buy qty product_name from producer_pseudo
+      strcpy(args[0], action_array[1]); //adding qty argument
+      strcpy(args[1], action_array[2]); //adding product_name argument
+      strcpy(args[2], action_array[4]); //adding producer_pseudo argument
+      char* return_msg = buy(wb, client_pseudo, args, validation_result);
+      notification_update = malloc(strlen(return_msg) * sizeof(char));
+      strcpy(notification_update, return_msg);
+      free(return_msg);
+    }
+    // else if (action_array[0] == "display")
+    //   notification_update = display(wb, pseudo, &args); //to be concatenated with the result of the display function
+    // else if (action_array[0] == "quit")
+    //   quit(wb, pseudo, &args);
+  }
+  free(args);
+  return notification_update;
 }
 
 int main(int argc, char* argv[]){
@@ -373,12 +463,12 @@ int main(int argc, char* argv[]){
     if ((pid = fork()) == 0){ //server child process for client handling
       close_socket(server_socket_fd, "server socket closing error");
       // increment_connected_clients(shm_clients, sem_id);
-      char quit_msg[2] = ""; //":q"
+      char quit_msg[5] = ""; //"quit"
 
       /*initializing server message and pseudo*/
       message server_msg;
       strcpy(server_msg.pseudo, "Server");
-      strcpy(server_msg.text, "Greetings! Please enter your pseudo (maximum of 100 characters, no spaces) : ");
+      strcpy(server_msg.text, "Greetings! Welcome to the open-market platform.");
 
       /*requesting pseudo from client*/
       send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
@@ -392,37 +482,31 @@ int main(int argc, char* argv[]){
 
       do {
         //wait for actions sent by client
+        char* notification_update = "";
         recv_message(client_socket_fd, &client_msg, sizeof(client_msg), 0, "Message reception error");
 
-        /**TODO
-         * actions must be validated here (values only)
-         * if an action is validated we execute it
-         * else we send an error message to the client
-        */
-
-
         //if client wants to quit the chatroom
-        if(strcmp(quit_msg, client_msg.text) == 0){
+        if(!strcmp(quit_msg, client_msg.text)){
           strcpy(server_msg.text, "Bye Bye...");
           send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
-          //TODO remove all stocks related to client in the whiteboard
+          //must lock the whiteboard
+          char* quit_return = quit(wb, client_msg.pseudo);
+          notification_update = malloc(strlen(quit_return) * sizeof(char));
+          strcpy(notification_update, quit_return);
+          //must send notification to all other clients on the server
           close_socket(client_socket_fd, "client socket closing error");
+          //must unlock the whiteboard
           exit(EXIT_SUCCESS);
         }
 
         else{
-          /*
-          lock write mutex
-            write the message on the whiteboard
-            printf("CHATROOM\n========\n%s\n", *wb);
-            lock semaphore of connected clients
-              get number of connected clients
-              initialize semaphore of communicating child processes to number of clients * 2
-            unlock semaphore of connected clients
-            lock semaphore of communicating child processes
-            send whiteboard content
-            wait for zero for semaphore communicating child processes
+          /**TODO
+           * actions must be validated here (values only)
+           * if an action is validated we execute it
+           * else we send an error message to the client
           */
+          notification_update = execute_action(wb, client_msg.text, client_msg.pseudo);
+          printf("notification_update = %s\n", notification_update);
         }
 
       } while(strcmp(quit_msg, client_msg.text));
