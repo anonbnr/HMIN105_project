@@ -38,8 +38,10 @@ void substring(const char *str, char *sub, int p, int l){
   }
 }
 int isStringAnInt(char *string, int argsize){
-    for(int i = 0; i < argsize; i++){
-      if(!isdigit(string[i])){
+    char c;
+    for(int i = 0; i < argsize-1; i++){
+      c = string[i];
+      if(!isdigit(c)){
         return -3;
       }
     }
@@ -48,7 +50,7 @@ int isStringAnInt(char *string, int argsize){
 
 int isStringADecimal(char *string, int argsize){
   int dotCounter = 0;
-  for(int i = 0; i < argsize; i++){
+  for(int i = 0; i < argsize-1; i++){
     if(string[i] == '.')
       dotCounter++;
     else
@@ -59,4 +61,12 @@ int isStringADecimal(char *string, int argsize){
   if(dotCounter>1)
     return -3;
   return 1;
+}
+
+char* removeTrailingSlashN(char *string){
+  /* PUT IT IN AN ACTINO*/
+  char *pos;
+    if( (pos = strchr(string, '\n')) != NULL)
+      *pos = '\0';
+  return string;
 }

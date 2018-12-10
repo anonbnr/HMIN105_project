@@ -65,7 +65,7 @@ char **action_list;
 FUNCTIONS
 ============
 */
-void init_actions(){
+void init_action(){
 	action_list = malloc(ACTIONS_NUMBER*sizeof(char*));
 	action_list[0] = "add";
 	action_list[1] = "addTo";
@@ -82,13 +82,23 @@ Function to validate the pseudo
 only alphanumerical string allowed
 No spaces
 */
+
 int validate_pseudo(char* pseudo) {
     int pseudo_length;
-    pseudo_length=strlen(pseudo);
+
+    char* pseudo_no_n = removeTrailingSlashN(pseudo);
+
+    pseudo_length=strlen(pseudo_no_n);
+    if(pseudo_length > PSEUDO_SIZE){
+    	printf("Your pseudo must be less than %d characters\n", PSEUDO_SIZE);
+    		return -1;
+    	}
 
     for (int i = 0; i < pseudo_length ; i++)
-        if (!isalnum(pseudo[i]))
-            return 0;
+        if (!isalnum(pseudo_no_n[i])){
+        	printf("'%c' is not an alphanumeric character.\n", pseudo_no_n[i]);
+            return -1;
+        }
     return 1;
 }
 
@@ -103,6 +113,7 @@ int validate_action(char *action){
 	char** fields = split_string(action, delimiter, &size);
 	int action_exists = 0;
 
+	for(int i = 0; i < size; i++)
 	//check if the action (first element of the array) is valid
 	for(int i = 0; i < ACTIONS_NUMBER; i++){
 		if(!strcmp(action_list[i], action)){
@@ -111,8 +122,11 @@ int validate_action(char *action){
 			break;
 		}
 	}
-	if(action_exists == 0)
-			return -1;
+	if(action_exists == 0){
+		printf("This action is not valid. Check the \"help\" command\n");
+		return -1;
+
+	}
 
 	//check number of arguments
 	/*
@@ -141,6 +155,7 @@ int validate_action(char *action){
 
 	//incorrect number of arguments
 	if(size != number_args+1){
+		printf("Wrong argument number. Use \"help\" for reference\n");
 		return -2;
 	}
 
@@ -152,7 +167,7 @@ int validate_action(char *action){
 		//arg 2 is an int
 		int arg2len = strlen(fields[2]);
 		if(isStringAnInt(fields[2], arg2len)==-3){
-			printf("not an integer number\n");
+			printf("Your second argument must be an integer\n");
 			return -3;
 		}
 
@@ -161,7 +176,6 @@ int validate_action(char *action){
 		if(!strcmp(action, "modifyPrice")){
 			int arg2len = strlen(fields[2]);
 			if(isStringADecimal(fields[2], arg2len)==-3){
-				printf("Not a decimal numbver\n");
 				return -3;
 			}
 		}
@@ -189,13 +203,24 @@ int validate_action(char *action){
 /*
 input function
 */
-/*void input_action(){
-  do {
-    print("What do you want to do ?");
-    fgets(action, size_of_action, stdin);
-  } while(validate_action(action) != 0);
-}
+
+/*
+Typically, the safest and easiest way to use fgets is to allocate a single, large-enough line buffer. Use that to read the line, then copy it into correctly sized buffers.
+
+https://stackoverflow.com/questions/43813594/getting-input-with-fgets-in-a-loop
 */
+void input_action(){
+	char *action = malloc(MSG_SIZE * sizeof(char));
+	//printf("inside input action\n");
+  	//do{
+    	printf("What do you want to do ?\n");
+    	if(fgets(action, MSG_SIZE+1, stdin) != NULL){
+    	} //fgets adds a /n at the end so i have to adjust the size for it
+  	//}while(validate_action(action) != 1);
+
+    validate_action(action);
+}
+
 /*
 THREAD
 =======
@@ -217,11 +242,11 @@ void *receptionThread(void *par){
 		/*printf("Reception thread.\n");
 		sleep(2);*/
 
-		printf("while loop\n");
+		//printf("while loop\n");
 		//receive message
 		recv_message(sockfd, &msg, sizeof(msg), 0, "Message reception error");
 
-		printf("message received\n");
+		//printf("message received\n");
 		/*
 		//cut the last character from the pseudo and the message, which is a \n
 		int sizepseudo = strlen(msg.pseudo);
@@ -292,6 +317,25 @@ int main(int argc, char* argv[]){
 	//Connect to server
 	connect_socket(sock, (struct sockaddr*) &server_address, sizeof(server_address), "Error connecting to server. Exiting...");
 
+	message server_msg;
+ 	recv_message(sock, &server_msg, sizeof(server_msg), 0, "Message reception error");
+
+
+ 	//ADD A SECOND DO WHILE THAT SURROUNDS THIS ONE
+ 	//AS LONG AS THE MESSAGE RECEIVED BY THE SERVER IS -1, KEEP REPEATING THIS SAME PROCESS
+ 	do{
+ 		printf("Please enter your pseudo: \n");
+ 		//Get client's pseudo after the server asks for it
+ 		fgets(pseudo, PSEUDO_SIZE, stdin);
+ 		//printf("pseudo before: %s", pseudo);
+ 	}while(validate_pseudo(pseudo) == -1);
+ 	
+ 	message msgpseudo;
+ 	strcpy(msgpseudo.pseudo, pseudo);
+ 	send_message(sock, &msgpseudo, sizeof(msgpseudo), 0, "Message sending error");
+ 	
+ 	recv_message(sock, &server_msg, sizeof(server_msg), 0, "Message reception error");
+
  	//initialize parameter to be passed to the thread
  	thread_params *params = malloc(sizeof(thread_params));
  	params->sockfd = sock;
@@ -301,18 +345,10 @@ int main(int argc, char* argv[]){
  		exit(6);
  	}
 
- 	//Get client's pseudo after the server asks for it
- 	fgets(pseudo, PSEUDO_SIZE, stdin);
- 	printf("pseudo before: %s", pseudo);
- 	char *pos;
-		if( (pos = strchr(pseudo, '\n')) != NULL)
-			*pos = '\0';
-	printf("pseudo after: %s\n", pseudo);
- 	//test if it was read right
-
- 	message msgpseudo;
- 	strcpy(msgpseudo.pseudo, pseudo);
- 	send_message(sock, &msgpseudo, sizeof(msgpseudo), 0, "Message sending error");
  	
- 	while(1);
+ 	init_action();
+ 	//receive messages
+ 	while(1){
+ 		input_action();
+ 	}
 }

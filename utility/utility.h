@@ -20,5 +20,7 @@ char** split_string(char *str, char *delimiter, size_t* size);
 int isStringAnInt(char *string, int argsize);
 /* test if a string is a decimal number*/
 int isStringADecimal(char *string, int argsize);
+/*remove the trailing n from a string and replace it with \0 */
+char* removeTrailingSlashN(char *string);
 
 #endif //_UTILITY_H
