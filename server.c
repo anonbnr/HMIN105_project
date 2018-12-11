@@ -141,6 +141,33 @@ void decrement_connected_clients(int *connected_clients, int sem_id){
   printf("Connected clients: %d\n", *connected_clients);
 }
 
+void lock_parallel_communication_mutex(int sem_id, int sem_num){
+  struct sembuf op_buf;
+  /*initialization of the semaphore operation buffer for the wait semaphore operation*/
+  init_sem_op_buf(&op_buf, sem_num, -1, SEM_UNDO);
+
+  /*acquiring of the mutex on shared segment memory for inter-children process communication*/
+  sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
+}
+
+void unlock_parallel_communication_mutex(int sem_id, int sem_num){
+  struct sembuf op_buf;
+  /*initialization of the semaphore operation buffer for the signal semaphore operation*/
+  init_sem_op_buf(&op_buf, sem_num, 0, SEM_UNDO);
+
+  /*liberation of the mutex on shared segment memory for inter-children process communication*/
+  sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
+}
+
+void wait_for_zero_communication_mutex(int sem_id, int sem_num){
+  struct sembuf op_buf;
+  /*initialization of the semaphore operation buffer for the zero semaphore operation*/
+  init_sem_op_buf(&op_buf, sem_num, 0, SEM_UNDO);
+
+  /*locking of the mutex on shared segment memory for inter-children process communication until zero resources*/
+  sem_operation(sem_id, &op_buf, 1, "semaphore zero operation error");
+}
+
 //pseudos file functions
 // int validate_pseudo(const char* client_pseudo){
 //   //lock access to the file with a mutex
@@ -528,12 +555,6 @@ char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseu
     }
   }
 
-  else if(!strcmp(action_array[0], "display")){
-    char* return_msg = get_whiteboard_content(wb);
-    notification_update = malloc(strlen(return_msg) * sizeof(char));
-    strcpy(notification_update, return_msg);
-  }
-
   if(args != NULL){
     free(args);
     args = NULL;
@@ -645,6 +666,14 @@ int validate_buy(whiteboard *wb, const char* client_pseudo, char** args, char** 
   return -1;
 }
 
+void* broadcast_update(void *p){
+  thread_params *params = (thread_params*) p;
+  lock_parallel_communication_mutex(params->sem_id, 2);
+  send_controlled_content(params->sock_fd, params->update, &(params->msg));
+  unlock_parallel_communication_mutex(params->sem_id, 2);
+  wait_for_zero_communication_mutex(params->sem_id, 2);
+}
+
 int main(int argc, char* argv[]){
 
   whiteboard *wb = malloc(sizeof(whiteboard));
@@ -675,6 +704,7 @@ int main(int argc, char* argv[]){
   socklen_t client_sockaddr_size = sizeof(client_sockaddr);
 
   int client_socket_fd;
+  pthread_t idTh;
 
   while(1){
     client_socket_fd = accept_socket(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size, "server accepting connections error");
@@ -706,10 +736,15 @@ int main(int argc, char* argv[]){
 
       /*sending greeting message*/
       send_greeting_message(client_socket_fd, wb, sem_id, server_msg.pseudo, client_msg.pseudo);
+      // if (pthread_create(&idTh, NULL, receptionThread, params) != 0){
+     	// 	perror("Error in creating thread. Exiting...");
+     	// 	exit(6);
+     	// }
+
+      char* notification_update = "";
 
       do {
         //wait for actions sent by client
-        char* notification_update = "";
         recv_message(client_socket_fd, &client_msg, sizeof(client_msg), 0, "Message reception error");
 
         //if client wants to quit the chatroom
@@ -720,16 +755,37 @@ int main(int argc, char* argv[]){
 
           lock_wb_w_mutex(sem_id, 0);
           char* quit_return = quit(wb, client_msg.pseudo);
-          unlock_wb_w_mutex(sem_id, 0);
 
           notification_update = malloc(strlen(quit_return) * sizeof(char));
           strcpy(notification_update, quit_return);
-          printf("%s\n", notification_update);
-          printf("%s\n", get_whiteboard_content(wb));
-
           decrement_connected_clients(connected_clients, sem_id);
-          //broadcast the update through the thread
+
+          //initialization of the thread parameters structure
+          thread_params params;
+          params.sock = client_socket_fd;
+          params.sem_id = sem_id;
+          params.update = malloc(sizeof(notification_update));
+          strcpy(params.update, notification_update);
+          params.msg = client_msg;
+
+          //creation of the update reception thread
+          if(pthread_create(&idTh, NULL, broadcast_update, (void*)&params) != 0){
+            perror("thread creation error");
+            exit(EXIT_FAILURE);
+          }
+
+          lock_connected_clients_mutex(sem_id, 3);
+
+          unlock_wb_w_mutex(sem_id, 0);
+
           exit(EXIT_SUCCESS);
+        }
+
+        else if(!strcmp(client_msg.text, "display")){
+          lock_wb_w_mutex(sem_id, 0);
+          notification_update = get_whiteboard_content(wb);
+          unlock_wb_w_mutex(sem_id, 0);
+          send_controlled_content(client_socket_fd, notification_update, &client_msg);
         }
 
         else{
@@ -744,7 +800,6 @@ int main(int argc, char* argv[]){
         }
 
       } while(strcmp(client_msg.text, "quit"));
-
     }
     else
       close_socket(client_socket_fd, "client socket closing error (parent process)");

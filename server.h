@@ -33,6 +33,14 @@ union semun {
   struct seminfo *__buf; /*buffer when cmd=IPC_INFO (Linux)*/
 };
 
+//thread parameter structure
+typedef struct thread_params {
+  int sock_fd;
+  int sem_id;
+  char* update;
+  message msg;
+} thread_params;
+
 /*FUNCTIONS*/
 /*ipc initialization functions*/
 whiteboard* init_wb_shm(); //initialization of the whiteboard shared segment that returns a pointer to the whiteboard afterwards
@@ -48,6 +56,9 @@ void lock_connected_clients_mutex(int sem_id, int sem_num);
 void unlock_connected_clients_mutex(int sem_id, int sem_num);
 void increment_connected_clients(int *connected_clients, int sem_id);
 void decrement_connected_clients(int *connected_clients, int sem_id);
+void lock_parallel_communication_mutex(int sem_id, int sem_num);
+void unlock_parallel_communication_mutex(int sem_id, int sem_num);
+void wait_for_zero_communication_mutex(int sem_id, int sem_num);
 
 // //pseudos file functions
 // int validate_pseudo(const char* client_pseudo);
