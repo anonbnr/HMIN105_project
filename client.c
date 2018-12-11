@@ -75,7 +75,7 @@ void helptext(){
 	printf("quit: removes your stocks and closes the app\n syntax: quit\n");
 	printf("display:  displays all the market\n syntax: display\n");
 	printf("hel: shows a help message\n syntax: help\n\n\n");
-	
+
 }
 void init_action(){
 	action_list = malloc(ACTIONS_NUMBER*sizeof(char*));
@@ -128,15 +128,12 @@ int validate_action(char *action){
 	//	for(int i = 0; i < size; i++)
 	//check if the action (first element of the array) is valid
 	for(int i = 0; i < ACTIONS_NUMBER; i++){
-		printf("action_list[%d]: %s \n", i, action_list[i]);
-
 		if(!strcmp(action_list[i], fields[0])){
 			//we found a valid action
 			action_exists = 1;
 			break;
 		}
 	}
-	printf("action exists = %d\n", action_exists);
 	if(action_exists == 0){
 		printf("Error: This action is not valid. Check the \"help\" command\n");
 		return -1;
@@ -241,11 +238,9 @@ int input_action(char *action, char *action_saved){
     	//printf("Action string from begining of input_action: %s\n", action);
 
     	action = removeTrailingSlashN(action);
-    	printf("action after removeTrailingSlashN: %s\n", action);
     	if(validate_action(action) == 1){
     		//action is valid, send it to the server
     		strcpy(action_saved, action);
-    		printf("Action saved from input %s\n", action_saved);
 			return 1;
 	    	}
     }//fgets adds a /n at the end so i have to adjust the size for it
@@ -397,7 +392,6 @@ int main(int argc, char* argv[]){
 
  	//send messages
  	while(1){
- 		int send = 0;
  		char* action = malloc(MSG_SIZE * sizeof(char));
  		char *action_saved = malloc(MSG_SIZE * sizeof(char));
 
@@ -405,7 +399,11 @@ int main(int argc, char* argv[]){
     	if(fgets(action, MSG_SIZE+1, stdin) != NULL){
 	    	//no error from reading
 	    	action = removeTrailingSlashN(action);
-	    	printf("Action string from begining of input_action: %s\n", action);
+
+	    	//continue if action is empty instead of crashing
+	    	if(!strcmp(action,"")){
+	    		continue;
+	    	}
 
 	    	strcpy(action_saved, action);
 
