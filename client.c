@@ -411,6 +411,10 @@ int main(int argc, char* argv[]){
 	    		//action is valid, send it to the server
 	    		//printf("Action saved from inside the if in main %s\n", action_saved);
 
+	    		if(!strcmp(action, "help")){
+	    			continue;
+	    			printf("Help function\n");
+	    		}
 	    		message action_msg;
 	    		strcpy(action_msg.pseudo, pseudo);
 	    		strcpy(action_msg.text, action_saved);
