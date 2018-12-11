@@ -60,3 +60,19 @@ void sem_operation(int sem_id, struct sembuf *sops, size_t nops, const char* err
     exit(EXIT_FAILURE);
   }
 }
+
+void delete_shm(int shm_id, const char* error_msg){
+  int shm_ctl = shmctl(shm_id, IPC_RMID, NULL);
+  if(shm_ctl == -1){
+    perror(error_msg);
+    exit(EXIT_FAILURE);
+  }
+}
+
+void delete_semtable(int idSem, const char* error_msg){
+  int sem_ctl = semctl(idSem, 0, IPC_RMID);
+  if(sem_ctl == -1){
+    perror(error_msg);
+    exit(EXIT_FAILURE);
+  }
+}

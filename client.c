@@ -357,6 +357,10 @@ int main(int argc, char* argv[]){
 
 	//printf("%s: %s\n", server_msg.pseudo, server_msg.text);
 
+ 	
+ 	//initilize the action definition array
+ 	init_action();
+
  	//initialize parameter to be passed to the thread
  	thread_params *params = malloc(sizeof(thread_params));
  	params->sockfd = sock;
@@ -365,10 +369,6 @@ int main(int argc, char* argv[]){
  		perror("Error in creating thread. Exiting...");
  		exit(6);
  	}
-
- 	//initilize the action definition array
- 	init_action();
-
 
  	//send messages
  	while(1){

@@ -750,6 +750,9 @@ int main(int argc, char* argv[]){
       close_socket(client_socket_fd, "client socket closing error (parent process)");
   }
 
+
+  delete_shm(wb_id, "error while deleting the shared memory");
+  
   free(wb);
   wb = NULL;
 
