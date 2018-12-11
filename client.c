@@ -135,7 +135,7 @@ int validate_action(char *action){
 		}
 	}
 	if(action_exists == 0){
-		printf("Error: This action is not valid. Check the \"help\" command\n");
+		printf("Error: This action is not valid. Check the \"help\" command\n\n");
 		return -1;
 
 	}
@@ -167,7 +167,7 @@ int validate_action(char *action){
 
 	//incorrect number of arguments
 	if(size != number_args+1){
-		printf("Error: Wrong argument number. Use \"help\" for reference\n");
+		printf("Error: Wrong argument number. Use \"help\" for reference\n\n");
 		return -2;
 	}
 
@@ -179,7 +179,7 @@ int validate_action(char *action){
 		//arg 2 is an int
 		int arg2len = strlen(fields[2]);
 		if(isStringAnInt(fields[2], arg2len)==-3){
-			printf("Error: Your second argument must be an integer\n");
+			printf("Error: Your second argument must be a positive integer\n\n");
 			return -3;
 		}
 
@@ -188,30 +188,30 @@ int validate_action(char *action){
 		if(!strcmp(action, "modifyPrice")){
 			int arg2len = strlen(fields[2]);
 			if(isStringADecimal(fields[2], arg2len)==-3){
-				printf("Error: Your second argument must be a number\n");
+				printf("Error: Your second argument must be a positive number\n\n");
 				return -3;
 			}
 		}
 		else
 			if(!strcmp(action, "add")){
 				if(isStringAnInt(fields[1], strlen(fields[1]))==-3){
-					printf("Error: Your first argument must be a integer\n");
+					printf("Error: Your first argument must be  a positive integer\n\n");
 					return -3;
 				}
 				if(isStringADecimal(fields[3], strlen(fields[3])) == -3){
-					printf("Error: Your third argument must be a integer\n");
+					printf("Error: Your third argument must be  a positive integer\n\n");
 					return -3;
 				}
 			}
 			else
 				if(!strcmp(action, "buy")){
 					if(isStringAnInt(fields[1], strlen(fields[1]))==-3){
-					printf("Error: Your first argument must be a integer\n");
+					printf("Error: Your first argument must be  a positive integer\n\n");
 					return -3;
 					}
 
 					if(strcmp(fields[3], "from") != 0){
-						printf("Error: Your third argument must be a integer\n");
+						printf("Error: Your third argument must be  a positive integer\n\n");
 						return -3;
 					}
 
@@ -246,7 +246,7 @@ int input_action(char *action, char *action_saved){
     }//fgets adds a /n at the end so i have to adjust the size for it
     else{
     	//error reading client text
-    	printf("Internal error [fgets]. Application will now close...\n Sorry for the inconvenience\n");
+    	printf("Internal error [fgets]. Application will now close...\n Sorry for the inconvenience\n\n");
     	exit(1);
     }
     return -1;
