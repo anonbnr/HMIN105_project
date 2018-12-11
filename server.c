@@ -9,7 +9,7 @@
 #include "wrapper/socket_wrapper.h"
 
 /*FUNCTIONS*/
-//ipc initialization functions
+/*ipc initialization functions*/
 whiteboard* init_wb_shm(){
   /*key generation for whiteboard*/
   key_t wb_key = ipc_key_generation("ipc", WB_CODE, "whiteboard key generation error");
@@ -24,6 +24,22 @@ whiteboard* init_wb_shm(){
   init_whiteboard(wb);
 
   return wb;
+}
+
+int* init_shm_clients(){
+  /*key generation for connected clients shared segment*/
+  key_t shm_clients_key = ipc_key_generation("ipc", SHM_CLIENTS_CODE, "connected clients shared segment key generation error");
+
+  /*connected clients shared segment creation and internal id reception*/
+  int shm_clients_id = shm_id_reception(shm_clients_key, sizeof(int), IPC_CREAT | 0666, "connected clients shared segment creation error");
+
+  /*connected clients shared segment attachment to server process*/
+  int *connected_clients = (int*) shm_attachment(shm_clients_id, NULL, 0666, "connected clients shared segment attachment error");
+
+  /*connected clients shared segment initialization*/
+  *connected_clients = 0;
+
+  return connected_clients;
 }
 
 union semun init_sem_union(int sem_id){
@@ -55,13 +71,35 @@ int init_sem(){
   return sem_id;
 }
 
-void init_IPC(whiteboard **wb, int *sem_id, union semun *unisem){
+void init_IPC(whiteboard **wb, int **shm_clients, int *sem_id, union semun *unisem){
   *wb = init_wb_shm(); //creation and initialization of whiteboard
+  *shm_clients = init_shm_clients(); //creation and initialization of connected clients shared segment memory
   *sem_id = init_sem(); //creation of array of semaphores
   *unisem = init_sem_union(*sem_id); //initialization of array of sempahores buffer
 }
 
-void lock_mutex(int sem_id, int sem_num){
+/*semaphore and shared segment memory functions*/
+void lock_wb_w_mutex(int sem_id, int sem_num){
+  struct sembuf op_buf;
+
+  /*initialization of the semaphore operation buffer for the wait semaphore operation*/
+  init_sem_op_buf(&op_buf, sem_num, -1, SEM_UNDO);
+
+  /*acquiring of the mutex on the whiteboard*/
+  sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
+}
+
+void unlock_wb_w_mutex(int sem_id, int sem_num){
+  struct sembuf op_buf;
+
+  /*initialization of the semaphore operation buffer for the signal semaphore operation*/
+  init_sem_op_buf(&op_buf, sem_num, 1, SEM_UNDO);
+
+  /*liberation of the mutex on the whiteboard*/
+  sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
+}
+
+void lock_connected_clients_mutex(int sem_id, int sem_num){
   struct sembuf op_buf;
 
   /*initialization of the semaphore operation buffer for the wait semaphore operation*/
@@ -71,7 +109,7 @@ void lock_mutex(int sem_id, int sem_num){
   sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
 }
 
-void unlock_mutex(int sem_id, int sem_num){
+void unlock_connected_clients_mutex(int sem_id, int sem_num){
   struct sembuf op_buf;
 
   /*initialization of the semaphore operation buffer for the signal semaphore operation*/
@@ -81,28 +119,27 @@ void unlock_mutex(int sem_id, int sem_num){
   sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
 }
 
-//
-// void decrement_connected_clients(int *shm_clients, int sem_id){
-//   printf("Connected clients (before) : %d\n", *shm_clients);
-//   struct sembuf op_buf;
-//
-//   /*initialization of the semaphore operation buffer for the wait semaphore operation*/
-//   init_sem_op_buf(&op_buf, 3, -1, SEM_UNDO);
-//
-//   /*acquiring of the mutex on shared segment memory for connected clients*/
-//   sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
-//
-//   /*decrementing the number of clients*/
-//   *shm_clients = *shm_clients - 1;
-//
-//   /*initialization of the semaphore operation buffer for the signal semaphore operation*/
-//   init_sem_op_buf(&op_buf, 3, 1, SEM_UNDO);
-//
-//   /*liberation of the mutex on shared segment memory for connected clients*/
-//   sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
-//
-//   printf("Connected clients (after) : %d\n", *shm_clients);
-// }
+void increment_connected_clients(int *connected_clients, int sem_id){
+  lock_connected_clients_mutex(sem_id, 3);
+
+  /*incrementing the number of clients*/
+  *connected_clients += 1;
+
+  unlock_connected_clients_mutex(sem_id, 3);
+
+  printf("Connected clients: %d\n", *connected_clients);
+}
+
+void decrement_connected_clients(int *connected_clients, int sem_id){
+  lock_connected_clients_mutex(sem_id, 3);
+
+  /*incrementing the number of clients*/
+  *connected_clients -= 1;
+
+  unlock_connected_clients_mutex(sem_id, 3);
+
+  printf("Connected clients: %d\n", *connected_clients);
+}
 
 //pseudos file functions
 // int validate_pseudo(const char* client_pseudo){
@@ -181,7 +218,51 @@ void unlock_mutex(int sem_id, int sem_num){
 //   //unlock access to the file
 // }
 
-//whiteboard functions
+/*server functions*/
+void send_controlled_content(int client_socket_fd, const char* output, message *msg){
+  size_t output_length = strlen(output);
+  if(output_length <= MSG_SIZE){
+    strcpy(msg->text, output);
+    send_message(client_socket_fd, msg, sizeof(*msg), 0, "Message sending error");
+  }
+  else{
+    size_t remaining_chars = strlen(output);
+    int start = 0;
+    while(remaining_chars > MSG_SIZE){
+      substring(output, msg->text, start, MSG_SIZE);
+      send_message(client_socket_fd, msg, sizeof(*msg), 0, "Message sending error");
+      remaining_chars -= MSG_SIZE;
+      start += MSG_SIZE;
+    }
+
+    if(remaining_chars != 0){
+      substring(output, msg->text, start, remaining_chars);
+      send_message(client_socket_fd, msg, sizeof(*msg), 0, "Message sending error");
+    }
+  }
+}
+
+void send_greeting_message(int client_socket_fd, whiteboard *wb, int sem_id, const char* server_pseudo, const char* client_pseudo){
+  message msg;
+  strcpy(msg.pseudo, server_pseudo);
+
+  size_t size = snprintf(NULL, 0, "Hello \"%s\" and welcome to the open-market\n", client_pseudo);
+  lock_wb_w_mutex(sem_id, 0);
+  char *wb_content = get_whiteboard_content(wb);
+  unlock_wb_w_mutex(sem_id, 0);
+  size += snprintf(NULL, 0, "Market Status:\n=============\n%s\n", wb_content);
+  size += strlen("\n\nuse the \"help\" command for a list of possible actions\n\n");
+  size++; //adding space for '\0'
+
+  char *wb_content_output = malloc(size * sizeof(char));
+  sprintf(wb_content_output, "Hello \"%s\" and welcome to the open-market\nMarket Status:\n=============\n%s\n\n\nuse the \"help\" command for a list of possible actions\n\n", client_pseudo, wb_content);
+
+  send_controlled_content(client_socket_fd, wb_content_output, &msg);
+  free(wb_content_output);
+  wb_content_output = NULL;
+}
+
+/*whiteboard functions*/
 void init_whiteboard(whiteboard *wb){
   for (int i=0; i<MAX_STOCK; i++)
     init_empty_stock(&(wb->content[i]));
@@ -223,49 +304,7 @@ char* get_whiteboard_content(whiteboard *wb){
   return result;
 }
 
-void send_controlled_content(int client_socket_fd, const char* output, message *msg){
-  size_t output_length = strlen(output);
-  if(output_length <= MSG_SIZE){
-    strcpy(msg->text, output);
-    send_message(client_socket_fd, msg, sizeof(*msg), 0, "Message sending error");
-  }
-  else{
-    size_t remaining_chars = strlen(output);
-    int start = 0;
-    while(remaining_chars > MSG_SIZE){
-      substring(output, msg->text, start, MSG_SIZE);
-      send_message(client_socket_fd, msg, sizeof(*msg), 0, "Message sending error");
-      remaining_chars -= MSG_SIZE;
-      start += MSG_SIZE;
-    }
-
-    if(remaining_chars != 0){
-      substring(output, msg->text, start, remaining_chars);
-      send_message(client_socket_fd, msg, sizeof(*msg), 0, "Message sending error");
-    }
-  }
-}
-
-void send_greeting_message(int client_socket_fd, whiteboard *wb, int sem_id, const char* server_pseudo, const char* client_pseudo){
-  message msg;
-  strcpy(msg.pseudo, server_pseudo);
-
-  size_t size = snprintf(NULL, 0, "Hello \"%s\" and welcome to the open-market\n", client_pseudo);
-  lock_mutex(sem_id, 0);
-  char *wb_content = get_whiteboard_content(wb);
-  unlock_mutex(sem_id, 0);
-  size += snprintf(NULL, 0, "Market Status:\n=============\n%s\n", wb_content);
-  size += strlen("\n\nuse the \"help\" command for a list of possible actions\n\n");
-  size++; //adding space for '\0'
-
-  char *wb_content_output = malloc(size * sizeof(char));
-  sprintf(wb_content_output, "Hello \"%s\" and welcome to the open-market\nMarket Status:\n=============\n%s\n\n\nuse the \"help\" command for a list of possible actions\n\n", client_pseudo, wb_content);
-
-  send_controlled_content(client_socket_fd, wb_content_output, &msg);
-  free(wb_content_output);
-  wb_content_output = NULL;
-}
-
+//actions on whiteboard
 //add qty product_name price
 char* add(whiteboard *wb, const char* client_pseudo, char** args, int index){
   int quantity = (int) strtol(args[0], NULL, 10);
@@ -364,108 +403,6 @@ char* quit(whiteboard *wb, const char* client_pseudo) {
   return return_msg;
 }
 
-//add qty product_name price
-int validate_add(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
-  int free_index = 0;
-  for (int i=0; i<MAX_STOCK; i++){
-    if(!is_null(&(wb->content[i]))){
-      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[1])){
-        size_t size = snprintf(NULL, 0, "Error: a \"%s\" stock already exists for \"%s\"\n", args[1], client_pseudo);
-        *return_msg = malloc(size * sizeof(char));
-        sprintf(*return_msg, "Error: a \"%s\" stock already exists for \"%s\"\n", args[1], client_pseudo);
-        return -1;
-      }
-    }
-    else
-      free_index = i;
-  }
-  return free_index;
-}
-
-int validate_addTo(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
-  for (int i=0; i<MAX_STOCK; i++){
-    if(!is_null(&(wb->content[i]))){
-      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0]))
-        return i;
-    }
-  }
-
-  size_t size = snprintf(NULL, 0, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
-  *return_msg = malloc(size * sizeof(char));
-  sprintf(*return_msg, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
-  return -1;
-}
-
-int validate_removeFrom(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
-  for (int i=0; i<MAX_STOCK; i++){
-    if(!is_null(&(wb->content[i]))){
-      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0])){
-        int current_quantity = (wb->content[i]).quantity;
-        int quantity = (int) strtol(args[1], NULL, 10);
-        if(quantity <= current_quantity)
-          return i;
-        else{
-          size_t size = snprintf(NULL, 0, "Error: cannot remove %d from the \"%s\" stock (current quantity: %d < requested quantity: %d)\n", quantity, args[0], current_quantity, quantity);
-          *return_msg = malloc(size * sizeof(char));
-          sprintf(*return_msg, "Error: cannot remove %d from the \"%s\" stock (current quantity: %d < requested quantity: %d)\n", quantity, args[0], current_quantity, quantity);
-          return -1;
-        }
-      }
-    }
-  }
-
-  size_t size = snprintf(NULL, 0, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
-  *return_msg = malloc(size * sizeof(char));
-  sprintf(*return_msg, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
-  return -1;
-}
-
-int validate_modifyPrice(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
-  for (int i=0; i<MAX_STOCK; i++)
-    if(!is_null(&(wb->content[i])))
-      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0]))
-        return i;
-
-  size_t size = snprintf(NULL, 0, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
-  *return_msg = malloc(size * sizeof(char));
-  sprintf(*return_msg, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
-  return -1;
-}
-
-int validate_removeStock(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
-  for (int i=0; i<MAX_STOCK; i++){
-    if(!is_null(&(wb->content[i]))){
-      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0]))
-        return i;
-    }
-  }
-
-  size_t size = snprintf(NULL, 0, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
-  *return_msg = malloc(size * sizeof(char));
-  sprintf(*return_msg, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
-  return -1;
-}
-
-int validate_buy(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){//buy qty product_name from producer_pseudo
-  for (int i=0; i<MAX_STOCK; i++){
-    if(!is_null(&(wb->content[i]))){
-      if(!strcmp(client_pseudo, args[2])){
-        size_t size = snprintf(NULL, 0, "Error: \"%s\" cannot buy items from their own stocks\n", client_pseudo);
-        *return_msg = malloc(size * sizeof(char));
-        sprintf(*return_msg, "Error: \"%s\" cannot buy items from their own stocks\n", client_pseudo);
-        return -1;
-      }
-      else if(!strcmp((wb->content[i]).producer, args[2]) && !strcmp((wb->content[i]).name, args[1]))
-        return i;
-    }
-  }
-
-  size_t size = snprintf(NULL, 0, "Error: either \"%s\" or a stock \"%s\" they own do not exist\n", args[2], args[1]);
-  *return_msg = malloc(size * sizeof(char));
-  sprintf(*return_msg, "Error: either \"%s\" or a stock \"%s\" they own do not exist\n", args[2], args[1]);
-  return -1;
-}
-
 char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseudo){
   char* notification_update = "";
   size_t action_size;
@@ -474,7 +411,7 @@ char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseu
   if(action_size > 1)
     args = malloc((action_size-1) * sizeof(char*));
 
-  lock_mutex(sem_id, 0); //locking the whiteboard for writing
+  lock_wb_w_mutex(sem_id, 0); //locking the whiteboard for writing
   // if(!strcmp(client_pseudo, "Joseph")){
   //   printf("sleeping for 10 seconds...\n");
   //   sleep(10);
@@ -601,18 +538,122 @@ char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseu
     free(args);
     args = NULL;
   }
-  unlock_mutex(sem_id, 0); //unlocking the whiteboard after writing
+  unlock_wb_w_mutex(sem_id, 0); //unlocking the whiteboard after writing
   return notification_update;
+}
+
+//validation of the action functions
+//add qty product_name price
+int validate_add(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
+  int free_index = 0;
+  for (int i=0; i<MAX_STOCK; i++){
+    if(!is_null(&(wb->content[i]))){
+      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[1])){
+        size_t size = snprintf(NULL, 0, "Error: a \"%s\" stock already exists for \"%s\"\n", args[1], client_pseudo);
+        *return_msg = malloc(size * sizeof(char));
+        sprintf(*return_msg, "Error: a \"%s\" stock already exists for \"%s\"\n", args[1], client_pseudo);
+        return -1;
+      }
+    }
+    else
+      free_index = i;
+  }
+  return free_index;
+}
+
+int validate_addTo(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
+  for (int i=0; i<MAX_STOCK; i++){
+    if(!is_null(&(wb->content[i]))){
+      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0]))
+        return i;
+    }
+  }
+
+  size_t size = snprintf(NULL, 0, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  *return_msg = malloc(size * sizeof(char));
+  sprintf(*return_msg, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  return -1;
+}
+
+int validate_removeFrom(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
+  for (int i=0; i<MAX_STOCK; i++){
+    if(!is_null(&(wb->content[i]))){
+      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0])){
+        int current_quantity = (wb->content[i]).quantity;
+        int quantity = (int) strtol(args[1], NULL, 10);
+        if(quantity <= current_quantity)
+          return i;
+        else{
+          size_t size = snprintf(NULL, 0, "Error: cannot remove %d from the \"%s\" stock (current quantity: %d < requested quantity: %d)\n", quantity, args[0], current_quantity, quantity);
+          *return_msg = malloc(size * sizeof(char));
+          sprintf(*return_msg, "Error: cannot remove %d from the \"%s\" stock (current quantity: %d < requested quantity: %d)\n", quantity, args[0], current_quantity, quantity);
+          return -1;
+        }
+      }
+    }
+  }
+
+  size_t size = snprintf(NULL, 0, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  *return_msg = malloc(size * sizeof(char));
+  sprintf(*return_msg, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  return -1;
+}
+
+int validate_modifyPrice(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
+  for (int i=0; i<MAX_STOCK; i++)
+    if(!is_null(&(wb->content[i])))
+      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0]))
+        return i;
+
+  size_t size = snprintf(NULL, 0, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  *return_msg = malloc(size * sizeof(char));
+  sprintf(*return_msg, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  return -1;
+}
+
+int validate_removeStock(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
+  for (int i=0; i<MAX_STOCK; i++){
+    if(!is_null(&(wb->content[i]))){
+      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0]))
+        return i;
+    }
+  }
+
+  size_t size = snprintf(NULL, 0, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  *return_msg = malloc(size * sizeof(char));
+  sprintf(*return_msg, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  return -1;
+}
+
+int validate_buy(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
+  for (int i=0; i<MAX_STOCK; i++){
+    if(!is_null(&(wb->content[i]))){
+      if(!strcmp(client_pseudo, args[2])){
+        size_t size = snprintf(NULL, 0, "Error: \"%s\" cannot buy items from their own stocks\n", client_pseudo);
+        *return_msg = malloc(size * sizeof(char));
+        sprintf(*return_msg, "Error: \"%s\" cannot buy items from their own stocks\n", client_pseudo);
+        return -1;
+      }
+      else if(!strcmp((wb->content[i]).producer, args[2]) && !strcmp((wb->content[i]).name, args[1]))
+        return i;
+    }
+  }
+
+  size_t size = snprintf(NULL, 0, "Error: either \"%s\" or a stock \"%s\" they own do not exist\n", args[2], args[1]);
+  *return_msg = malloc(size * sizeof(char));
+  sprintf(*return_msg, "Error: either \"%s\" or a stock \"%s\" they own do not exist\n", args[2], args[1]);
+  return -1;
 }
 
 int main(int argc, char* argv[]){
 
   whiteboard *wb = malloc(sizeof(whiteboard));
+  int *connected_clients = malloc(sizeof(int));
   int sem_id;
   union semun unisem;
 
   /*creation and initialization of IPC objects used in the application*/
-  init_IPC(&wb, &sem_id, &unisem);
+  init_IPC(&wb, &connected_clients, &sem_id, &unisem);
 
   pid_t ppid = getpid(), pid;
   printf("Server Parent Process: %d\n", ppid);
@@ -639,6 +680,7 @@ int main(int argc, char* argv[]){
     client_socket_fd = accept_socket(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size, "server accepting connections error");
     if ((pid = fork()) == 0){ //server child process for client handling
       close_socket(server_socket_fd, "server socket closing error");
+      increment_connected_clients(connected_clients, sem_id);
 
       /*initializing server message and pseudo*/
       message server_msg;
@@ -676,21 +718,29 @@ int main(int argc, char* argv[]){
           send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
           close_socket(client_socket_fd, "client socket closing error (child process)");
 
-          lock_mutex(sem_id, 0);
+          lock_wb_w_mutex(sem_id, 0);
           char* quit_return = quit(wb, client_msg.pseudo);
-          unlock_mutex(sem_id, 0);
+          unlock_wb_w_mutex(sem_id, 0);
+
           notification_update = malloc(strlen(quit_return) * sizeof(char));
           strcpy(notification_update, quit_return);
           printf("%s\n", notification_update);
           printf("%s\n", get_whiteboard_content(wb));
-          //must send notification to all other clients on the server
+
+          decrement_connected_clients(connected_clients, sem_id);
+          //broadcast the update through the thread
           exit(EXIT_SUCCESS);
         }
 
         else{
           notification_update = execute_action(wb, sem_id, client_msg.text, client_msg.pseudo);
-          printf("%s\n", notification_update);
-          printf("%s\n", get_whiteboard_content(wb));
+          if(strstr(notification_update, "Error") != NULL)
+            send_controlled_content(client_socket_fd, notification_update, &client_msg);
+          else{
+            //broadcast the updates
+            printf("%s\n", notification_update);
+            printf("%s\n", get_whiteboard_content(wb));
+          }
         }
 
       } while(strcmp(client_msg.text, "quit"));
