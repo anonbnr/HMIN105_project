@@ -9,7 +9,7 @@ int create_socket(int domaine, int type, int protocole, const char* error_msg){
     perror(error_msg);
     exit(EXIT_FAILURE);
   }
-  printf("socket created successfully\n");
+  // printf("socket created successfully\n");
 
   return socket_fd;
 }
@@ -20,7 +20,7 @@ struct sockaddr_in init_sockaddr(sa_family_t family, in_port_t port, uint32_t s_
   adr.sin_port = htons(port);
   adr.sin_addr.s_addr = s_addr;
 
-  printf("socket address initialized successfully\n");
+  // printf("socket address initialized successfully\n");
   return adr;
 }
 
@@ -32,7 +32,7 @@ void bind_socket(int socket_fd, struct sockaddr* adr, socklen_t size, const char
     exit(EXIT_FAILURE);
   }
 
-  printf("socket address bound successfully\n");
+  // printf("socket address bound successfully\n");
 }
 void listen_socket(int socket_fd, int backlog, const char* error_msg){
   int listen_res = listen(socket_fd, backlog);
