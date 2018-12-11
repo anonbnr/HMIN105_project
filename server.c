@@ -308,13 +308,12 @@ char* removeFrom(whiteboard *wb, const char* client_pseudo, char** args, int ind
 char* modifyPrice(whiteboard *wb, const char* client_pseudo, char** args, int index){
   double new_price = strtod(args[1], NULL);
   double old_price = (wb->content[index]).price;
-  int old_price_size = snprintf(NULL, 0, "%lf", old_price);
 
   (wb->content[index]).price = new_price;
 
-  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + old_price_size + 49;
+  size_t size = snprintf(NULL, 0, "\"%s\" changed the price of \"%s\" from %.2f/piece to %.2f/piece.", client_pseudo, args[0], old_price, new_price);
   char *return_msg = malloc(size * sizeof(char));
-  sprintf(return_msg, "\"%s\" changed the price of \"%s\" from %lf/piece to %lf/piece.", client_pseudo, args[0], old_price, new_price);
+  sprintf(return_msg, "\"%s\" changed the price of \"%s\" from %.2f/piece to %.2f/piece.", client_pseudo, args[0], old_price, new_price);
   return return_msg;
 }
 
@@ -413,9 +412,17 @@ int validate_removeFrom(whiteboard *wb, const char* client_pseudo, char** args, 
   return -1;
 }
 
-int validate_modifyPrice(whiteboard *wb, const char* client_pseudo, char** args){
+int validate_modifyPrice(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
 
-  return 0; //index
+  for (int i=0; i<MAX_STOCK; i++)
+    if(!is_null(&(wb->content[i])))
+      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0]))
+        return i;
+
+  size_t size = snprintf(NULL, 0, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  *return_msg = malloc(size * sizeof(char));
+  sprintf(*return_msg, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  return -1;
 }
 
 int validate_removeStock(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
@@ -509,7 +516,25 @@ char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseu
     }
   }
 
-  else if(!strcmp(action_array[0], "removeStock")){ //removeStock product_name
+  else if(!strcmp(action_array[0], "modifyPrice")){
+    //arguments initialization
+    args[0] = malloc(sizeof(action_array[1])+1);
+    args[1] = malloc(sizeof(action_array[2])+1);
+    strcpy(args[0], action_array[1]); //adding product_name argument
+    strcpy(args[1], action_array[2]); //adding new_price argument
+
+    int validation_result = validate_modifyPrice(wb, client_pseudo, args, &notification_update);
+
+    if(validation_result >= 0){
+      char* return_msg = modifyPrice(wb, client_pseudo, args, validation_result);
+      notification_update = malloc(strlen(return_msg) * sizeof(char));
+      strcpy(notification_update, return_msg);
+      free(return_msg);
+      return_msg = NULL;
+    }
+  }
+
+  else if(!strcmp(action_array[0], "removeStock")){
     //arguments initialization
     args[0] = malloc(sizeof(action_array[1])+1);
     strcpy(args[0], action_array[1]); //adding product_name argument
@@ -525,12 +550,10 @@ char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseu
     }
   }
 
-  else if(!strcmp(action_array[0], "display")){ //display
+  else if(!strcmp(action_array[0], "display")){
     char* return_msg = get_whiteboard_content(wb);
     notification_update = malloc(strlen(return_msg) * sizeof(char));
     strcpy(notification_update, return_msg);
-    // free(return_msg);
-    // return_msg = NULL;
   }
 
   if(args != NULL){
@@ -588,8 +611,10 @@ int main(int argc, char* argv[]){
   struct sockaddr_in client_sockaddr;
   socklen_t client_sockaddr_size = sizeof(client_sockaddr);
 
+  int client_socket_fd;
+
   while(1){
-    int client_socket_fd = accept_socket(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size, "server accepting connections error");
+    client_socket_fd = accept_socket(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size, "server accepting connections error");
     if ((pid = fork()) == 0){ //server child process for client handling
       close_socket(server_socket_fd, "server socket closing error");
 
@@ -627,7 +652,7 @@ int main(int argc, char* argv[]){
         if(!strcmp(client_msg.text, "quit")){
           strcpy(server_msg.text, "Bye");
           send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
-          close_socket(client_socket_fd, "client socket closing error");
+          close_socket(client_socket_fd, "client socket closing error (child process)");
 
           lock_mutex(sem_id, 0);
           char* quit_return = quit(wb, client_msg.pseudo);
@@ -649,13 +674,8 @@ int main(int argc, char* argv[]){
       } while(strcmp(client_msg.text, "quit"));
 
     }
-    else{
-      // int client_fd_close_res = close(client_socket_fd);
-      // if(client_fd_close_res == -1){
-      //   perror("client socket closing error");
-      //   exit(EXIT_FAILURE);
-      // }
-    }
+    else
+      close_socket(client_socket_fd, "client socket closing error (parent process)");
   }
 
   free(wb);
