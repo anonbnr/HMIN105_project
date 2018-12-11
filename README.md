@@ -2,15 +2,24 @@ Open Market
 ===========
 
 
+Introduction
+============
+
 This project is a client-server program that emulates an open market.
-A user that launches the program can use one of the defined actions to interact witht the market.
+A user that launches the program can use one of the defined actions to interact with the market.
 
 The market is represented by a shared memory. Each item in the market is called a stock. 
+A stock has a name, which is the name of the product. It also has a price, and the quantiy of items in it. Finally, each stock has a "producer" field which is the name/pseudo of the person this stock belongs to.
+
+
+Each person can offer products for sale, can modify their own stocks, and can buy items from others. These actions will be explained in the following section.
+
 
 The following commands define the actions that each user can take:
 ==================================================================
+
 1) add: used to add a new stock
-"add 5 apples 2.3" means that the user added a stock of apples, that contains 5 elements, priced at 2.3 euros.
+"add 5 apples 2.3" means that the user added a stock of apples, that contains 5 elements, priced at 2.3 euros/piece.
 
 2) addTo: used to add a number of items to an existing stock. This stock must exist for the user who is using this command. Each user can only add to his own stock. 
 "addTo apples 3" adds 3 items to the stock of apples.
@@ -32,3 +41,13 @@ The following commands define the actions that each user can take:
 8)quit: this command will deletes the entirety of a person's stock from the market and closes the client program from which it was called. Use it as it is without parameters: "quit".
 
 9)help: typing "help" into the program will show a list of commands with ane explanation.
+
+
+How to run the program
+=======================
+
+1) Open a terminal and run ./server
+2) Open a second terminal and run ./client [ip address] 31000
+3) You can open as many terminals as you want and run clients
+4) To quit,use the "quit" command
+5) To close the server, use ctrl+c
