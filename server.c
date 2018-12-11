@@ -331,14 +331,22 @@ char* removeStock(whiteboard *wb, const char* client_pseudo, char** args, int in
 
 //buy qty product_name from producer_pseudo
 char *buy(whiteboard *wb, const char* client_pseudo, char** args, int index){
+  int current_quantity = (wb->content[index]).quantity;
   int quantity = (int) strtol(args[0], NULL, 10);
   double price = (wb->content[index]).price;
 
-  (wb->content[index]).quantity -= quantity;
+  if(quantity <= current_quantity)
+    (wb->content[index]).quantity -= quantity;
+  else{
+    size_t size = snprintf(NULL, 0, "Error: cannot purchase %d items from the \"%s\" stock of \"%s\" (current quantity: %d < requested quantity: %d)\n", quantity, args[1], args[2], current_quantity, quantity);
+    char *return_msg = malloc(size * sizeof(char));
+    sprintf(return_msg, "Error: cannot purchase %d items from the \"%s\" stock of \"%s\" (current quantity: %d < requested quantity: %d)\n", quantity, args[1], args[2], current_quantity, quantity);
+    return return_msg;
+  }
 
-  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + strlen(args[2]) + 52;
+  size_t size = snprintf(NULL, 0, "\"%s\" bought %d pieces from the \"%s\" stock of \"%s\" at %.2f euros/piece.", client_pseudo, quantity, args[1], args[2], price);
   char *return_msg = malloc(size * sizeof(char));
-  sprintf(return_msg, "\"%s\" bought %d pieces from the \"%s\" stock of \"%s\" at %lf/piece.", client_pseudo, quantity, args[1], args[2], price);
+  sprintf(return_msg, "\"%s\" bought %d pieces from the \"%s\" stock of \"%s\" at %.2f euros/piece.", client_pseudo, quantity, args[1], args[2], price);
   return return_msg;
 }
 
@@ -413,7 +421,6 @@ int validate_removeFrom(whiteboard *wb, const char* client_pseudo, char** args, 
 }
 
 int validate_modifyPrice(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
-
   for (int i=0; i<MAX_STOCK; i++)
     if(!is_null(&(wb->content[i])))
       if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0]))
@@ -426,7 +433,6 @@ int validate_modifyPrice(whiteboard *wb, const char* client_pseudo, char** args,
 }
 
 int validate_removeStock(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
-
   for (int i=0; i<MAX_STOCK; i++){
     if(!is_null(&(wb->content[i]))){
       if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0]))
@@ -440,9 +446,24 @@ int validate_removeStock(whiteboard *wb, const char* client_pseudo, char** args,
   return -1;
 }
 
-int validate_buy(whiteboard *wb, const char* client_pseudo, char** args){
+int validate_buy(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){//buy qty product_name from producer_pseudo
+  for (int i=0; i<MAX_STOCK; i++){
+    if(!is_null(&(wb->content[i]))){
+      if(!strcmp(client_pseudo, args[2])){
+        size_t size = snprintf(NULL, 0, "Error: \"%s\" cannot buy items from their own stocks\n", client_pseudo);
+        *return_msg = malloc(size * sizeof(char));
+        sprintf(*return_msg, "Error: \"%s\" cannot buy items from their own stocks\n", client_pseudo);
+        return -1;
+      }
+      else if(!strcmp((wb->content[i]).producer, args[2]) && !strcmp((wb->content[i]).name, args[1]))
+        return i;
+    }
+  }
 
-  return 0; //index
+  size_t size = snprintf(NULL, 0, "Error: either \"%s\" or a stock \"%s\" they own do not exist\n", args[2], args[1]);
+  *return_msg = malloc(size * sizeof(char));
+  sprintf(*return_msg, "Error: either \"%s\" or a stock \"%s\" they own do not exist\n", args[2], args[1]);
+  return -1;
 }
 
 char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseudo){
@@ -550,6 +571,26 @@ char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseu
     }
   }
 
+  else if(!strcmp(action_array[0], "buy")){ //buy qty product_name from producer_pseudo
+    //arguments initialization
+    args[0] = malloc(sizeof(action_array[1])+1);
+    args[1] = malloc(sizeof(action_array[2])+1);
+    args[2] = malloc(sizeof(action_array[4])+1);
+    strcpy(args[0], action_array[1]); //adding quantity argument
+    strcpy(args[1], action_array[2]); //adding product_name argument
+    strcpy(args[2], action_array[4]); //adding producer_pseudo argument
+
+    int validation_result = validate_buy(wb, client_pseudo, args, &notification_update);
+
+    if(validation_result >= 0){
+      char* return_msg = buy(wb, client_pseudo, args, validation_result);
+      notification_update = malloc(strlen(return_msg) * sizeof(char));
+      strcpy(notification_update, return_msg);
+      free(return_msg);
+      return_msg = NULL;
+    }
+  }
+
   else if(!strcmp(action_array[0], "display")){
     char* return_msg = get_whiteboard_content(wb);
     notification_update = malloc(strlen(return_msg) * sizeof(char));
@@ -562,25 +603,6 @@ char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseu
   }
   unlock_mutex(sem_id, 0); //unlocking the whiteboard after writing
   return notification_update;
-
-  //   else if(!strcmp(action_array[0], "modifyPrice")){ //modifyPrice product_name new_price
-  //     strcpy(args[0], action_array[1]); //adding product_name argument
-  //     strcpy(args[1], action_array[2]); //adding new_price argument
-  //     char* return_msg = modifyPrice(wb, client_pseudo, args, validation_result);
-  //     notification_update = malloc(strlen(return_msg) * sizeof(char));
-  //     strcpy(notification_update, return_msg);
-  //     free(return_msg);
-  //   }
-  //   else if(!strcmp(action_array[0], "buy")){ //buy qty product_name from producer_pseudo
-  //     strcpy(args[0], action_array[1]); //adding qty argument
-  //     strcpy(args[1], action_array[2]); //adding product_name argument
-  //     strcpy(args[2], action_array[4]); //adding producer_pseudo argument
-  //     char* return_msg = buy(wb, client_pseudo, args, validation_result);
-  //     notification_update = malloc(strlen(return_msg) * sizeof(char));
-  //     strcpy(notification_update, return_msg);
-  //     free(return_msg);
-  //   }
-  // }
 }
 
 int main(int argc, char* argv[]){
