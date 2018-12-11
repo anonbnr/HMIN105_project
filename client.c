@@ -277,6 +277,10 @@ void *receptionThread(void *par){
 		//receive message
 		recv_message(sockfd, &msg, sizeof(msg), 0, "Message reception error");
 
+		if(!strcmp(msg.text, "Bye")){
+			printf("The program will now close...\n");
+			exit(1);
+		}
 		//printf("message received\n");
 		/*
 		//cut the last character from the pseudo and the message, which is a \n
