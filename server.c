@@ -16,15 +16,12 @@ whiteboard* init_wb_shm(){
 
   /*whiteboard creation and internal id reception*/
   int wb_id = shm_id_reception(wb_key, sizeof(whiteboard), IPC_CREAT | 0666, "whiteboard creation error");
-  // printf("whiteboard id : %d\n", wb_id);
 
   /*whiteboard memory space attachment to server process*/
   whiteboard *wb = (whiteboard*) shm_attachment(wb_id, NULL, 0666, "whiteboard attachment error");
-  // printf("whiteboard attached successfully\n");
 
   /*whiteboard initialization*/
   init_whiteboard(wb);
-  // printf("whiteboard initialized successfully\n");
 
   return wb;
 }
@@ -33,17 +30,16 @@ union semun init_sem_union(int sem_id){
   union semun unisem;
 
   unisem.value = 1;
-  semctl(sem_id, 0, SETVAL, unisem); //initialization of whiteboard mutex
+  semctl(sem_id, 0, SETVAL, unisem); //initialization of whiteboard writing mutex
 
   unisem.value = 1;
-  semctl(sem_id, 1, SETVAL, unisem); //initialization of concurrent access mutex
+  semctl(sem_id, 1, SETVAL, unisem); //initialization of whiteboard reading mutex
 
   unisem.value = 0;
   semctl(sem_id, 2, SETVAL, unisem); //initialization of server child process communication semaphore
 
   unisem.value = 1;
   semctl(sem_id, 3, SETVAL, unisem); //initialization of shared segment for connected clients mutex
-  // printf("semaphore array initialized successfully\n");
 
   return unisem;
 }
@@ -65,27 +61,26 @@ void init_IPC(whiteboard **wb, int *sem_id, union semun *unisem){
   *unisem = init_sem_union(*sem_id); //initialization of array of sempahores buffer
 }
 
-// void increment_connected_clients(int *shm_clients, int sem_id){
-//   printf("Connected clients (before) : %d\n", *shm_clients);
-//   struct sembuf op_buf;
-//
-//   /*initialization of the semaphore operation buffer for the wait semaphore operation*/
-//   init_sem_op_buf(&op_buf, 3, -1, SEM_UNDO);
-//
-//   /*acquiring of the mutex on shared segment memory for connected clients*/
-//   sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
-//
-//   /*incrementing the number of clients*/
-//   *shm_clients = *shm_clients + 1;
-//
-//   /*initialization of the semaphore operation buffer for the signal semaphore operation*/
-//   init_sem_op_buf(&op_buf, 3, 1, SEM_UNDO);
-//
-//   /*liberation of the mutex on shared segment memory for connected clients*/
-//   sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
-//
-//   printf("Connected clients (after) : %d\n", *shm_clients);
-// }
+void lock_mutex(int sem_id, int sem_num){
+  struct sembuf op_buf;
+
+  /*initialization of the semaphore operation buffer for the wait semaphore operation*/
+  init_sem_op_buf(&op_buf, sem_num, -1, SEM_UNDO);
+
+  /*acquiring of the mutex on shared segment memory for connected clients*/
+  sem_operation(sem_id, &op_buf, 1, "semaphore wait operation error");
+}
+
+void unlock_mutex(int sem_id, int sem_num){
+  struct sembuf op_buf;
+
+  /*initialization of the semaphore operation buffer for the signal semaphore operation*/
+  init_sem_op_buf(&op_buf, sem_num, 1, SEM_UNDO);
+
+  /*liberation of the mutex on shared segment memory for connected clients*/
+  sem_operation(sem_id, &op_buf, 1, "semaphore signal operation error");
+}
+
 //
 // void decrement_connected_clients(int *shm_clients, int sem_id){
 //   printf("Connected clients (before) : %d\n", *shm_clients);
@@ -201,6 +196,7 @@ char* get_whiteboard_content(whiteboard *wb){
       stock_output = stock_toString(&(wb->content[i]));
       size += strlen(stock_output);
       free(stock_output);
+      stock_output = NULL;
     }
   }
 
@@ -213,6 +209,7 @@ char* get_whiteboard_content(whiteboard *wb){
       stock_output = stock_toString(&(wb->content[i]));
       strcat(result, stock_output);
       free(stock_output);
+      stock_output = NULL;
     }
 
   return result;
@@ -256,6 +253,7 @@ void send_greeting_message(int client_socket_fd, whiteboard *wb, const char* ser
 
   send_controlled_content(client_socket_fd, wb_content_output, &msg);
   free(wb_content_output);
+  wb_content_output = NULL;
 }
 
 //add qty product_name price
@@ -265,7 +263,8 @@ char* add(whiteboard *wb, const char* client_pseudo, char** args, int index){
 
   init_stock(&(wb->content[index]), args[1], client_pseudo, price, quantity);
 
-  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + strlen(args[2]) + 43;
+  size_t size = snprintf(NULL, 0, "\"%s\" added a stock of %s \"%s\" for %.2f euros/piece.", client_pseudo, args[0], args[1], price);
+  // size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + strlen(args[2]) + 43;
   char *return_msg = malloc(size * sizeof(char));
   sprintf(return_msg, "\"%s\" added a stock of %s \"%s\" for %.2f euros/piece.", client_pseudo, args[0], args[1], price);
   return return_msg;
@@ -277,7 +276,8 @@ char* addTo(whiteboard *wb, const char* client_pseudo, char** args, int index){
 
   (wb->content[index]).quantity += quantity;
 
-  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + 25;
+  size_t size = snprintf(NULL, 0, "\"%s\" added %s to the \"%s\" stock.", client_pseudo, args[1], args[0]);
+  // size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + 25;
   char *return_msg = malloc(size * sizeof(char));
   sprintf(return_msg, "\"%s\" added %s to the \"%s\" stock.", client_pseudo, args[1], args[0]);
   return return_msg;
@@ -289,7 +289,8 @@ char* removeFrom(whiteboard *wb, const char* client_pseudo, char** args, int ind
 
   (wb->content[index]).quantity -= quantity;
 
-  size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + 30;
+  size_t size = snprintf(NULL, 0, "\"%s\" removed %s from the \"%s\" stock.", client_pseudo, args[1], args[0]);
+  // size_t size = strlen(client_pseudo) + strlen(args[0]) + strlen(args[1]) + 30;
   char *return_msg = malloc(size * sizeof(char));
   sprintf(return_msg, "\"%s\" removed %s from the \"%s\" stock.", client_pseudo, args[1], args[0]);
   return return_msg;
@@ -448,12 +449,19 @@ int validate_action(whiteboard *wb, char* action, const char* client_pseudo, cha
   return -1; //error
 }
 
-char* execute_action(whiteboard *wb, char* action, char* client_pseudo){
+char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseudo){
   char* notification_update = "";
   size_t action_size;
   char** action_array = split_string(action, " ", &action_size);
   char** args = malloc((action_size-1) * sizeof(char*));
 
+  lock_mutex(sem_id, 0); //locking the whiteboard for writing
+  // if(!strcmp(client_pseudo, "Joseph")){
+  //   printf("sleeping for 10 seconds...\n");
+  //   sleep(10);
+  // }
+
+  //start of critical section
   if(!strcmp(action_array[0], "add")){
     //arguments initialization
     args[0] = malloc(sizeof(action_array[1])+1);
@@ -463,8 +471,6 @@ char* execute_action(whiteboard *wb, char* action, char* client_pseudo){
     strcpy(args[1], action_array[2]); //adding product_name argument
     strcpy(args[2], action_array[3]); //adding price argument
 
-    //semaphore array needs to be handled here
-
     int validation_result = validate_add(wb, client_pseudo, args, &notification_update);
 
     if(validation_result >= 0){
@@ -472,6 +478,7 @@ char* execute_action(whiteboard *wb, char* action, char* client_pseudo){
       notification_update = malloc(strlen(return_msg) * sizeof(char));
       strcpy(notification_update, return_msg);
       free(return_msg);
+      return_msg = NULL;
     }
 
     //semaphore array needs to be handled here
@@ -493,6 +500,7 @@ char* execute_action(whiteboard *wb, char* action, char* client_pseudo){
       notification_update = malloc(strlen(return_msg) * sizeof(char));
       strcpy(notification_update, return_msg);
       free(return_msg);
+      return_msg = NULL;
     }
     //semaphore array needs to be handled here
   }
@@ -513,10 +521,13 @@ char* execute_action(whiteboard *wb, char* action, char* client_pseudo){
       notification_update = malloc(strlen(return_msg) * sizeof(char));
       strcpy(notification_update, return_msg);
       free(return_msg);
+      return_msg = NULL;
     }
     //semaphore array needs to be handled here
   }
   free(args);
+  args = NULL;
+  unlock_mutex(sem_id, 0); //unlocking the whiteboard after writing
   return notification_update;
   // int validation_result = validate_action(wb, action_array[0], client_pseudo, args, notification_update);
   //
@@ -669,7 +680,7 @@ int main(int argc, char* argv[]){
            * else we send an error message to the client
           */
           printf("we're here (%d)\n", counter);
-          notification_update = execute_action(wb, client_msg.text, client_msg.pseudo);
+          notification_update = execute_action(wb, sem_id, client_msg.text, client_msg.pseudo);
           printf("%s\n", notification_update);
           printf("%s\n", get_whiteboard_content(wb));
           counter++;
