@@ -29,8 +29,8 @@ int is_null(stock *st){
 char* stock_toString(stock *st){
   int price_length = snprintf(NULL, 0, "%f", st->price);
   int quantity_length = snprintf(NULL, 0, "%d", st->quantity);
-  size_t size = strlen(st->producer) + strlen(st->name) + price_length + quantity_length + 13;
+  size_t size = strlen(st->producer) + strlen(st->name) + price_length + quantity_length + 16;
   char *result = malloc(size);
-  sprintf(result, "[%s] %s %d %f euros.\n", st->producer, st->name, st->quantity, st->price);
+  sprintf(result, "[%s] \"%s\" %d %.2f euros.\n", st->producer, st->name, st->quantity, st->price);
   return result;
 }

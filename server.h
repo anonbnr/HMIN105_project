@@ -10,7 +10,8 @@
 #define PORT_NUMBER 31000
 #define BACKLOG 10
 #define MAX_STOCK 10000
-#define ACTION_INPUT_SYMBOL ">"
+#define MAX_CLIENT 200
+#define PSEUDOS_FILE "pseudos.txt"
 
 /*STRUCTURES*/
 //whiteboard structure
@@ -35,18 +36,20 @@ union semun {
 /*FUNCTIONS*/
 //ipc initialization functions
 whiteboard* init_wb_shm(); //initialization of the whiteboard shared segment that returns a pointer to the whiteboard afterwards
-int* init_shm_clients(); //initialization of the number of clients shared segment that returns a pointer to the shared segment afterwards
 int init_sem(); //creation of a SV semaphore array that returns the semaphore array ID afterwards
 union semun init_sem_union(int sem_id); //initialization of a SV semaphore array union buffer that returns the initialized buffer afterwards
-void init_IPC(whiteboard **wb, int **shm_clients, int *sem_id, union semun *unisem); //initialization of all IPC objects required for the application
-// void increment_connected_clients(int *shm_clients, int sem_id);
-// void decrement_connected_clients(int *shm_clients, int sem_id);
+void init_IPC(whiteboard **wb, int *sem_id, union semun *unisem); //initialization of all IPC objects required for the application
+
+//pseudos file functions
+int validate_pseudo(const char* client_pseudo);
+void add_client(const char* client_pseudo);
+void remove_client(const char* client_pseudo);
+void display_clients();
 
 //whiteboard functions
 void init_whiteboard(whiteboard *wb); //initializes a whiteboard structure
 char* get_whiteboard_content(whiteboard *wb); //gets the contents of the whiteboard as a string
 void send_controlled_content(int client_socket_fd, const char* output, message *msg); //sends the contents of the whiteboard to the client
-int validate_pseudo(whiteboard *wb, const char* client_pseudo); //checks if the client is already registered in the market
 void send_greeting_message(int client_socket_fd, whiteboard *wb, const char* server_pseudo, const char* client_pseudo); //sends the greeting message to the client upon after receiving his pseudo
 char* add(whiteboard *wb, const char* client_pseudo, char** args, int index); //add product_name qty price
 char* addTo(whiteboard *wb, const char* client_pseudo, char** args, int index); //addTo product_name qty

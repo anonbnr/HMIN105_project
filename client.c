@@ -137,7 +137,7 @@ int validate_action(char *action){
 	removeStock: 1
 	buy: 4
 	quit, display, help: 0
-	*/	
+	*/
 	int number_args;
 	//get the number of arguments needed for the current action
 	if(!strcmp(action, "quit")||!strcmp(action, "display")||!strcmp(action, "help"))
@@ -208,7 +208,7 @@ int validate_action(char *action){
 				}
 	if(!strcmp(action, "help")){
 			printf("helptext\n");
-	}	
+	}
 	return 1;
 }
 
@@ -222,7 +222,7 @@ Typically, the safest and easiest way to use fgets is to allocate a single, larg
 https://stackoverflow.com/questions/43813594/getting-input-with-fgets-in-a-loop
 */
 int input_action(char *action, char *action_saved){
-	//char *action 
+	//char *action
 	//printf("inside input action\n");
     printf("What do you want to do ?\n");
     if(fgets(action, MSG_SIZE+1, stdin) != NULL){
@@ -242,7 +242,7 @@ int input_action(char *action, char *action_saved){
     	exit(1);
     }
     return -1;
-}	
+}
 
 /*
 THREAD
@@ -335,7 +335,7 @@ int main(int argc, char* argv[]){
     }
 
     server_address.sin_port =  htons(atoi(argv[2]));
-		printf("server socket address initialized successfully\n");
+		// printf("server socket address initialized successfully\n");
 
 	//Connect to server
 	connect_socket(sock, (struct sockaddr*) &server_address, sizeof(server_address), "Error connecting to server. Exiting...");
@@ -353,12 +353,12 @@ int main(int argc, char* argv[]){
  		fgets(pseudo, PSEUDO_SIZE, stdin);
  		//printf("pseudo before: %s", pseudo);
  	}while(validate_pseudo(pseudo) == -1);
- 	
+
  	//send pseudo to server
  	message msgpseudo;
  	strcpy(msgpseudo.pseudo, pseudo);
  	send_message(sock, &msgpseudo, sizeof(msgpseudo), 0, "Message sending error");
- 	
+
  	//receive validation message from server
  	recv_message(sock, &server_msg, sizeof(server_msg), 0, "Message reception error");
 
@@ -401,10 +401,11 @@ int main(int argc, char* argv[]){
 	    		message action_msg;
 	    		strcpy(action_msg.pseudo, pseudo);
 	    		strcpy(action_msg.text, action_saved);
+					printf("action message being sent\n");
 
 	    		send_message(sock, &action_msg, sizeof(action_msg), 0, "Message sending error");
 
-	    		
+
 		    	}
     	}//fgets adds a /n at the end so i have to adjust the size for it
 
