@@ -48,7 +48,7 @@ void init_IPC(whiteboard **wb, int *sem_id, union semun *unisem); //initializati
 
 //server functions
 void send_controlled_content(int client_socket_fd, const char* output, message *msg); //sends the contents of the whiteboard to the client
-void send_greeting_message(int client_socket_fd, whiteboard *wb, const char* server_pseudo, const char* client_pseudo); //sends the greeting message to the client upon after receiving his pseudo
+void send_greeting_message(int client_socket_fd, whiteboard *wb, int sem_id, const char* server_pseudo, const char* client_pseudo); //sends the greeting message to the client upon after receiving his pseudo
 
 /*whiteboard functions*/
 void init_whiteboard(whiteboard *wb); //initializes a whiteboard structure
