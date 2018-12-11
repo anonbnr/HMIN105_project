@@ -271,7 +271,7 @@ void *receptionThread(void *par){
 
 	while(strcmp(msg.text, "Bye")){
 		recv_message(sockfd, &msg, sizeof(msg), 0, "Message reception error");
-		printf("%s: %s\n",msg.pseudo, msg.text);
+		printf("%s\n", msg.text);
 		//empty message structure
 
 	}
@@ -332,7 +332,7 @@ int main(int argc, char* argv[]){
  	recv_message(sock, &server_msg, sizeof(server_msg), 0, "Message reception error");
 
  	//print message on screen
-	printf("%s: %s\n",server_msg.pseudo, server_msg.text);
+	printf("%s\n", server_msg.text);
 
  	do{
  	do{
@@ -350,7 +350,7 @@ int main(int argc, char* argv[]){
  	//receive validation message from server
  	recv_message(sock, &server_msg, sizeof(server_msg), 0, "Message reception error");
 
- 	printf("%s: %s\n", server_msg.pseudo, server_msg.text);
+ 	printf("%s\n", server_msg.text);
  	//while it's a negative response,ask the user for another input
  	}while(!strcmp(server_msg.text, "-1"));
  	//print message on screen
