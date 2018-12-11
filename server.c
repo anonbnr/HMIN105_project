@@ -375,9 +375,28 @@ int validate_addTo(whiteboard *wb, const char* client_pseudo, char** args, char*
   return -1;
 }
 
-int validate_removeFrom(whiteboard *wb, const char* client_pseudo, char** args){
+int validate_removeFrom(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg){
+  for (int i=0; i<MAX_STOCK; i++){
+    if(!is_null(&(wb->content[i]))){
+      if(!strcmp((wb->content[i]).producer, client_pseudo) && !strcmp((wb->content[i]).name, args[0])){
+        int current_quantity = (wb->content[i]).quantity;
+        int quantity = (int) strtol(args[1], NULL, 10);
+        if(quantity <= current_quantity)
+          return i;
+        else{
+          size_t size = snprintf(NULL, 0, "Error: cannot remove %d from the \"%s\" stock (current quantity: %d < requested quantity: %d)\n", quantity, args[0], current_quantity, quantity);
+          *return_msg = malloc(size * sizeof(char));
+          sprintf(*return_msg, "Error: cannot remove %d from the \"%s\" stock (current quantity: %d < requested quantity: %d)\n", quantity, args[0], current_quantity, quantity);
+          return -1;
+        }
+      }
+    }
+  }
 
-  return 0; //index
+  size_t size = snprintf(NULL, 0, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  *return_msg = malloc(size * sizeof(char));
+  sprintf(*return_msg, "Error: \"%s\" stock does not exist for \"%s\"\n", args[0], client_pseudo);
+  return -1;
 }
 
 int validate_modifyPrice(whiteboard *wb, const char* client_pseudo, char** args){
@@ -397,16 +416,10 @@ int validate_buy(whiteboard *wb, const char* client_pseudo, char** args){
 
 int validate_action(whiteboard *wb, char* action, const char* client_pseudo, char** args, char* return_msg){
 
-  if(!strcmp(action, "addTo")){
-    //semaphore array needs to be handled here
-    //call validate_addTo
-    return validate_addTo(wb, client_pseudo, args, &return_msg);
-  }
-
-  else if(!strcmp(action, "removeFrom")){
+  if(!strcmp(action, "removeFrom")){
     //semaphore array needs to be handled here
     //call validate_removeFrom
-    return validate_removeFrom(wb, client_pseudo, args);
+    return validate_removeFrom(wb, client_pseudo, args, &return_msg);
   }
 
   else if(!strcmp(action, "modifyPrice")){
@@ -477,6 +490,26 @@ char* execute_action(whiteboard *wb, char* action, char* client_pseudo){
 
     if(validation_result >= 0){
       char* return_msg = addTo(wb, client_pseudo, args, validation_result);
+      notification_update = malloc(strlen(return_msg) * sizeof(char));
+      strcpy(notification_update, return_msg);
+      free(return_msg);
+    }
+    //semaphore array needs to be handled here
+  }
+
+  else if(!strcmp(action_array[0], "removeFrom")){ //removeFrom product_name qty
+    //arguments initialization
+    args[0] = malloc(sizeof(action_array[1])+1);
+    args[1] = malloc(sizeof(action_array[2])+1);
+    strcpy(args[0], action_array[1]); //adding product_name argument
+    strcpy(args[1], action_array[2]); //adding quantity argument
+
+    //semaphore array needs to be handled here
+
+    int validation_result = validate_removeFrom(wb, client_pseudo, args, &notification_update);
+
+    if(validation_result >= 0){
+      char* return_msg = removeFrom(wb, client_pseudo, args, validation_result);
       notification_update = malloc(strlen(return_msg) * sizeof(char));
       strcpy(notification_update, return_msg);
       free(return_msg);
