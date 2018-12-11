@@ -232,7 +232,7 @@ UNUSED
 int input_action(char *action, char *action_saved){
 	//char *action
 	//printf("inside input action\n");
-    printf("What do you want to do ?\n");
+    printf("What do you want to do ?\n\n");
     if(fgets(action, MSG_SIZE+1, stdin) != NULL){
     	//no error from reading
     	//printf("Action string from begining of input_action: %s\n", action);
@@ -418,7 +418,7 @@ int main(int argc, char* argv[]){
 	    		message action_msg;
 	    		strcpy(action_msg.pseudo, pseudo);
 	    		strcpy(action_msg.text, action_saved);
-					printf("action message being sent\n");
+					//printf("action message being sent\n");
 
 	    		send_message(sock, &action_msg, sizeof(action_msg), 0, "Message sending error");
 
