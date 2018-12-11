@@ -346,9 +346,12 @@ char *buy(whiteboard *wb, const char* client_pseudo, char** args, int index){
 char* quit(whiteboard *wb, const char* client_pseudo) {
   for (int i=0; i<MAX_STOCK; i++)
     if(!is_null(&(wb->content[i])))
-      if(!strcmp((wb->content[i]).producer, client_pseudo))
+      if(!strcmp((wb->content[i]).producer, client_pseudo)){
         empty_stock(&(wb->content[i]));
-  size_t size = strlen(client_pseudo) + 59;
+        wb->nb_stocks -= 1;
+      }
+
+  size_t size = snprintf(NULL, 0, "\"%s\" just quit the market and all of his stocks were removed", client_pseudo);
   char *return_msg = malloc(size * sizeof(char));
   sprintf(return_msg, "\"%s\" just quit the market and all of his stocks were removed", client_pseudo);
   return return_msg;
@@ -433,28 +436,6 @@ int validate_removeStock(whiteboard *wb, const char* client_pseudo, char** args,
 int validate_buy(whiteboard *wb, const char* client_pseudo, char** args){
 
   return 0; //index
-}
-
-int validate_action(whiteboard *wb, char* action, const char* client_pseudo, char** args, char* return_msg){
-
-  if(!strcmp(action, "modifyPrice")){
-    //semaphore array needs to be handled here
-    //call validate_modifyPrice
-    return validate_modifyPrice(wb, client_pseudo, args);
-  }
-
-  else if(!strcmp(action, "buy")){
-    //semaphore array needs to be handled here
-    //call validate_buy
-    return validate_buy(wb, client_pseudo, args);
-  }
-
-  else if(!strcmp(action, "display") || !strcmp(action, "quit")){
-    //semaphore array needs to be handled here
-    return 0; //success code
-  }
-
-  return -1; //error
 }
 
 char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseudo){
@@ -567,13 +548,6 @@ char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseu
   //     strcpy(notification_update, return_msg);
   //     free(return_msg);
   //   }
-  //   else if(!strcmp(action_array[0], "removeStock")){
-  //     strcpy(args[0], action_array[1]); //adding product_name argument
-  //     char* return_msg = removeStock(wb, client_pseudo, args, validation_result);
-  //     notification_update = malloc(strlen(return_msg) * sizeof(char));
-  //     strcpy(notification_update, return_msg);
-  //     free(return_msg);
-  //   }
   //   else if(!strcmp(action_array[0], "buy")){ //buy qty product_name from producer_pseudo
   //     strcpy(args[0], action_array[1]); //adding qty argument
   //     strcpy(args[1], action_array[2]); //adding product_name argument
@@ -583,13 +557,7 @@ char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseu
   //     strcpy(notification_update, return_msg);
   //     free(return_msg);
   //   }
-  //   // else if (action_array[0] == "display")
-  //   //   notification_update = display(wb, pseudo, &args); //to be concatenated with the result of the display function
-  //   // else if (action_array[0] == "quit")
-  //   //   quit(wb, pseudo, &args);
   // }
-  // free(args);
-  // return notification_update;
 }
 
 int main(int argc, char* argv[]){
@@ -624,8 +592,6 @@ int main(int argc, char* argv[]){
     int client_socket_fd = accept_socket(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size, "server accepting connections error");
     if ((pid = fork()) == 0){ //server child process for client handling
       close_socket(server_socket_fd, "server socket closing error");
-      // increment_connected_clients(shm_clients, sem_id);
-      char *quit_msg = "quit"; //"quit"
 
       /*initializing server message and pseudo*/
       message server_msg;
@@ -658,31 +624,29 @@ int main(int argc, char* argv[]){
         recv_message(client_socket_fd, &client_msg, sizeof(client_msg), 0, "Message reception error");
 
         //if client wants to quit the chatroom
-        if(!strcmp(quit_msg, client_msg.text)){
-          strcpy(server_msg.text, "Bye Bye...");
+        if(!strcmp(client_msg.text, "quit")){
+          strcpy(server_msg.text, "Bye");
           send_message(client_socket_fd, &server_msg, sizeof(server_msg), 0, "Message sending error");
-          //must lock the whiteboard
+          close_socket(client_socket_fd, "client socket closing error");
+
+          lock_mutex(sem_id, 0);
           char* quit_return = quit(wb, client_msg.pseudo);
+          unlock_mutex(sem_id, 0);
           notification_update = malloc(strlen(quit_return) * sizeof(char));
           strcpy(notification_update, quit_return);
+          printf("%s\n", notification_update);
+          printf("%s\n", get_whiteboard_content(wb));
           //must send notification to all other clients on the server
-          close_socket(client_socket_fd, "client socket closing error");
-          //must unlock the whiteboard
           exit(EXIT_SUCCESS);
         }
 
         else{
-          /**TODO
-           * actions must be validated here (values only)
-           * if an action is validated we execute it
-           * else we send an error message to the client
-          */
           notification_update = execute_action(wb, sem_id, client_msg.text, client_msg.pseudo);
           printf("%s\n", notification_update);
           printf("%s\n", get_whiteboard_content(wb));
         }
 
-      } while(strcmp(quit_msg, client_msg.text));
+      } while(strcmp(client_msg.text, "quit"));
 
     }
     else{
