@@ -40,17 +40,21 @@ int init_sem(); //creation of a SV semaphore array that returns the semaphore ar
 union semun init_sem_union(int sem_id); //initialization of a SV semaphore array union buffer that returns the initialized buffer afterwards
 void init_IPC(whiteboard **wb, int *sem_id, union semun *unisem); //initialization of all IPC objects required for the application
 
-//pseudos file functions
-int validate_pseudo(const char* client_pseudo);
-void add_client(const char* client_pseudo);
-void remove_client(const char* client_pseudo);
-void display_clients();
+// //pseudos file functions
+// int validate_pseudo(const char* client_pseudo);
+// void add_client(const char* client_pseudo);
+// void remove_client(const char* client_pseudo);
+// void display_clients();
 
-//whiteboard functions
-void init_whiteboard(whiteboard *wb); //initializes a whiteboard structure
-char* get_whiteboard_content(whiteboard *wb); //gets the contents of the whiteboard as a string
+//server functions
 void send_controlled_content(int client_socket_fd, const char* output, message *msg); //sends the contents of the whiteboard to the client
 void send_greeting_message(int client_socket_fd, whiteboard *wb, const char* server_pseudo, const char* client_pseudo); //sends the greeting message to the client upon after receiving his pseudo
+
+/*whiteboard functions*/
+void init_whiteboard(whiteboard *wb); //initializes a whiteboard structure
+char* get_whiteboard_content(whiteboard *wb); //gets the contents of the whiteboard as a string
+
+//actions on the whiteboard
 char* add(whiteboard *wb, const char* client_pseudo, char** args, int index); //add product_name qty price
 char* addTo(whiteboard *wb, const char* client_pseudo, char** args, int index); //addTo product_name qty
 char* removeFrom(whiteboard *wb, const char* client_pseudo, char** args, int index); //removeFrom product_name qty
@@ -58,7 +62,13 @@ char* modifyPrice(whiteboard *wb, const char* client_pseudo, char** args, int in
 char* removeStock(whiteboard *wb, const char* client_pseudo, char** args, int index); //removeStock product_name
 char* buy(whiteboard *wb, const char* client_pseudo, char** args, int index); //buy qty product_name from producer_pseudo
 char* quit(whiteboard *wb, const char* client_pseudo);
+
+//validation of the action functions
+int validate_add(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg);
+int validate_addTo(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg);
+int validate_removeFrom(whiteboard *wb, const char* client_pseudo, char** args, char** return_msg);
+
 int validate_action(whiteboard *wb, char* action, const char* client_pseudo, char** args, char* return_msg);
-char* execute_action(whiteboard *wb, char* action, char* client_pseudo);
+char* execute_action(whiteboard *wb, int sem_id, char* action, char* client_pseudo);
 
 #endif //_SERVER_H
