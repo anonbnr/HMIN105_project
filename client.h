@@ -17,4 +17,5 @@ int validate_pseudo(char* pseudo);
 void init_action();
 int validate_action(char *action);
 int input_action();
+void helptext();
 #endif //_CLIENT_H

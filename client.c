@@ -65,6 +65,18 @@ char **action_list;
 FUNCTIONS
 ============
 */
+void helptext(){
+	printf("add: used to add a new stock\nsyntax:'add [number] [product] [price]'\n");
+	printf("addTo: used to add a number of items to an existing stock\n syntax: addTo [product] [number]\n");
+	printf("modifyPrice: used to change the proce of an existing stock\n syntax: modify [product] [new price]\n");
+	printf("removeFrom: used to remove a number of items from an existing stock\n syntax: removeFrom [product] [quantity]\n");
+	printf("removeStock: used to completly remove an existing stock\n syntax: removeStock [product]\n");
+	printf("buy: buys an number elements from the specified stock\n syntax: buy [qty] [product] from [producer]\n");
+	printf("quit: removes your stocks and closes the app\n syntax: quit\n");
+	printf("display:  displays all the market\n syntax: display\n");
+	printf("hel: shows a help message\n syntax: help\n\n\n");
+	
+}
 void init_action(){
 	action_list = malloc(ACTIONS_NUMBER*sizeof(char*));
 	action_list[0] = "add";
@@ -124,6 +136,7 @@ int validate_action(char *action){
 			break;
 		}
 	}
+	printf("action exists = %d\n", action_exists);
 	if(action_exists == 0){
 		printf("Error: This action is not valid. Check the \"help\" command\n");
 		return -1;
@@ -207,7 +220,7 @@ int validate_action(char *action){
 
 				}
 	if(!strcmp(action, "help")){
-			printf("helptext\n");
+			helptext();
 	}	
 	return 1;
 }
@@ -217,9 +230,7 @@ input function
 */
 
 /*
-Typically, the safest and easiest way to use fgets is to allocate a single, large-enough line buffer. Use that to read the line, then copy it into correctly sized buffers.
-
-https://stackoverflow.com/questions/43813594/getting-input-with-fgets-in-a-loop
+UNUSED
 */
 int input_action(char *action, char *action_saved){
 	//char *action 
@@ -229,6 +240,8 @@ int input_action(char *action, char *action_saved){
     	//no error from reading
     	//printf("Action string from begining of input_action: %s\n", action);
 
+    	action = removeTrailingSlashN(action);
+    	printf("action after removeTrailingSlashN: %s\n", action);
     	if(validate_action(action) == 1){
     		//action is valid, send it to the server
     		strcpy(action_saved, action);
@@ -391,7 +404,9 @@ int main(int argc, char* argv[]){
  		printf("What do you want to do ?\n");
     	if(fgets(action, MSG_SIZE+1, stdin) != NULL){
 	    	//no error from reading
+	    	action = removeTrailingSlashN(action);
 	    	printf("Action string from begining of input_action: %s\n", action);
+
 	    	strcpy(action_saved, action);
 
 	    	if(validate_action(action) == 1){
