@@ -68,13 +68,13 @@ FUNCTIONS
 void helptext(){
 	printf("add: used to add a new stock\n     syntax:'add [number] [product] [price]'\n\n");
 	printf("addTo: used to add a number of items to an existing stock\n     syntax: addTo [product] [number]\n\n");
-	printf("modifyPrice: used to change the proce of an existing stock\n     syntax: modify [product] [new price]\n\n");
+	printf("modifyPrice: used to change the price of an existing stock\n     syntax: modifyPrice [product] [new price]\n\n");
 	printf("removeFrom: used to remove a number of items from an existing stock\n     syntax: removeFrom [product] [quantity]\n\n");
-	printf("removeStock: used to completly remove an existing stock\n syntax:     removeStock [product]\n\n");
+	printf("removeStock: used to completely remove an existing stock\n syntax:     removeStock [product]\n\n");
 	printf("buy: buys an number elements from the specified stock\n syntax:     buy [qty] [product] from [producer]\n\n");
 	printf("quit: removes your stocks and closes the app\n     syntax: quit\n\n");
 	printf("display:  displays all the market\n    syntax: display\n\n");
-	printf("hel: shows a help message\n     syntax: help\n\n\n");
+	printf("help: shows a help message\n     syntax: help\n\n\n");
 
 }
 void init_action(){
@@ -269,38 +269,14 @@ void *receptionThread(void *par){
 	int sockfd = params->sockfd;
 	message msg;
 
-	while(1){
-		/*printf("Reception thread.\n");
-		sleep(2);*/
-
-		//printf("while loop\n");
-		//receive message
+	while(strcmp(msg.text, "Bye")){
 		recv_message(sockfd, &msg, sizeof(msg), 0, "Message reception error");
-
-		if(!strcmp(msg.text, "Bye")){
-			printf("The program will now close...\n");
-			exit(1);
-		}
-		//printf("message received\n");
-		/*
-		//cut the last character from the pseudo and the message, which is a \n
-		int sizepseudo = strlen(msg.pseudo);
-		int sizetext = strlen(msg.text);
-
-		printf("pseudo before: %s\n", msg.pseudo);
-		printf("text before: %s\n", msg.text);
-		char *pos;
-		if( (pos = strchr(msg.pseudo, '\n')) != NULL)
-			*pos = '\0';
-
-		if( (pos = strchr(msg.text, '\n')) != NULL)
-			*pos = '\0';
-		*/
-		//print message on screen
 		printf("%s: %s\n",msg.pseudo, msg.text);
 		//empty message structure
 
 	}
+	printf("The program will now close...\n");
+	exit(1);
 }
 
 /*
@@ -398,7 +374,6 @@ int main(int argc, char* argv[]){
  	while(1){
  		char* action = malloc(MSG_SIZE * sizeof(char));
  		char *action_saved = malloc(MSG_SIZE * sizeof(char));
-
  		printf("What do you want to do ?\n");
     	if(fgets(action, MSG_SIZE+1, stdin) != NULL){
 	    	//no error from reading
