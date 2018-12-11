@@ -66,15 +66,15 @@ FUNCTIONS
 ============
 */
 void helptext(){
-	printf("add: used to add a new stock\nsyntax:'add [number] [product] [price]'\n");
-	printf("addTo: used to add a number of items to an existing stock\n syntax: addTo [product] [number]\n");
-	printf("modifyPrice: used to change the proce of an existing stock\n syntax: modify [product] [new price]\n");
-	printf("removeFrom: used to remove a number of items from an existing stock\n syntax: removeFrom [product] [quantity]\n");
-	printf("removeStock: used to completly remove an existing stock\n syntax: removeStock [product]\n");
-	printf("buy: buys an number elements from the specified stock\n syntax: buy [qty] [product] from [producer]\n");
-	printf("quit: removes your stocks and closes the app\n syntax: quit\n");
-	printf("display:  displays all the market\n syntax: display\n");
-	printf("hel: shows a help message\n syntax: help\n\n\n");
+	printf("add: used to add a new stock\n     syntax:'add [number] [product] [price]'\n\n");
+	printf("addTo: used to add a number of items to an existing stock\n     syntax: addTo [product] [number]\n\n");
+	printf("modifyPrice: used to change the proce of an existing stock\n     syntax: modify [product] [new price]\n\n");
+	printf("removeFrom: used to remove a number of items from an existing stock\n     syntax: removeFrom [product] [quantity]\n\n");
+	printf("removeStock: used to completly remove an existing stock\n syntax:     removeStock [product]\n\n");
+	printf("buy: buys an number elements from the specified stock\n syntax:     buy [qty] [product] from [producer]\n\n");
+	printf("quit: removes your stocks and closes the app\n     syntax: quit\n\n");
+	printf("display:  displays all the market\n    syntax: display\n\n");
+	printf("hel: shows a help message\n     syntax: help\n\n\n");
 
 }
 void init_action(){
