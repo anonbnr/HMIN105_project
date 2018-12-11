@@ -666,13 +666,13 @@ int validate_buy(whiteboard *wb, const char* client_pseudo, char** args, char** 
   return -1;
 }
 
-void* broadcast_update(void *p){
-  thread_params *params = (thread_params*) p;
-  lock_parallel_communication_mutex(params->sem_id, 2);
-  send_controlled_content(params->sock_fd, params->update, &(params->msg));
-  unlock_parallel_communication_mutex(params->sem_id, 2);
-  wait_for_zero_communication_mutex(params->sem_id, 2);
-}
+// void* broadcast_update(void *p){
+//   thread_params *params = (thread_params*) p;
+//   lock_parallel_communication_mutex(params->sem_id, 2);
+//   send_controlled_content(params->sock_fd, params->update, &(params->msg));
+//   unlock_parallel_communication_mutex(params->sem_id, 2);
+//   wait_for_zero_communication_mutex(params->sem_id, 2);
+// }
 
 int main(int argc, char* argv[]){
 
@@ -704,7 +704,6 @@ int main(int argc, char* argv[]){
   socklen_t client_sockaddr_size = sizeof(client_sockaddr);
 
   int client_socket_fd;
-  pthread_t idTh;
 
   while(1){
     client_socket_fd = accept_socket(server_socket_fd, (struct sockaddr*)&client_sockaddr, &client_sockaddr_size, "server accepting connections error");
@@ -755,28 +754,28 @@ int main(int argc, char* argv[]){
 
           lock_wb_w_mutex(sem_id, 0);
           char* quit_return = quit(wb, client_msg.pseudo);
+          unlock_wb_w_mutex(sem_id, 0);
 
           notification_update = malloc(strlen(quit_return) * sizeof(char));
           strcpy(notification_update, quit_return);
           decrement_connected_clients(connected_clients, sem_id);
 
-          //initialization of the thread parameters structure
-          thread_params params;
-          params.sock = client_socket_fd;
-          params.sem_id = sem_id;
-          params.update = malloc(sizeof(notification_update));
-          strcpy(params.update, notification_update);
-          params.msg = client_msg;
-
-          //creation of the update reception thread
-          if(pthread_create(&idTh, NULL, broadcast_update, (void*)&params) != 0){
-            perror("thread creation error");
-            exit(EXIT_FAILURE);
-          }
-
-          lock_connected_clients_mutex(sem_id, 3);
-
-          unlock_wb_w_mutex(sem_id, 0);
+          // //initialization of the thread parameters structure
+          // thread_params params;
+          // params.sock = client_socket_fd;
+          // params.sem_id = sem_id;
+          // params.update = malloc(sizeof(notification_update));
+          // strcpy(params.update, notification_update);
+          // params.msg = client_msg;
+          //
+          // //creation of the update reception thread
+          // if(pthread_create(&idTh, NULL, broadcast_update, (void*)&params) != 0){
+          //   perror("thread creation error");
+          //   exit(EXIT_FAILURE);
+          // }
+          //
+          // lock_connected_clients_mutex(sem_id, 3);
+          //
 
           exit(EXIT_SUCCESS);
         }
